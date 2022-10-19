@@ -89,7 +89,7 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
 	#f[2*IX(10,10),1] = 0.5
 	
 
-	if(True):
+	if(False):
 		
 		showNdof(f[:,0],nelx,nely)
 		showNdof(f[:,1],nelx,nely)
@@ -120,7 +120,11 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
 	passive = np.zeros((nely) * (nelx))
 	for i in range(nelx):
 		for j in range(nely):
-			if np.sqrt((j-nely/2)**2+(i-nelx/3)**2) < nely/3:
+			if np.sqrt((j-50)**2+(i-60)**2) < 20:
+				passive[IX(i,j)] = 1
+			if np.sqrt((j-35)**2+(i-20)**2) < 15:
+				passive[IX(i,j)] = 1
+			if np.sqrt((j-20)**2+(i-60)**2) < 10:
 				passive[IX(i,j)] = 1
 	
 
