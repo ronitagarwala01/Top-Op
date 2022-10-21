@@ -230,6 +230,7 @@ class topOpter:
             obj = 0
             for i in range(self.numberOfForces):
                 Ui = self.u[:,i]
+                #seperate to own funtion
                 self.ce[:] = (np.dot(Ui[self.edofMat].reshape(self.nelx*self.nely,8),self.KE) * Ui[self.edofMat].reshape(self.nelx*self.nely,8) ).sum(1)
                 obj += ((self.Emin+self.xPhys**self.penal*(self.Emax-self.Emin))*self.ce).sum()
                 if(i == 0):
@@ -331,7 +332,7 @@ class topOpter:
 
         for x in range(self.nelx):
             for y in range(self.nely):
-                self.passive[x*self.nelx + y] = passiveArray[x][y]
+                self.passive[x*self.nely + y] = passiveArray[x][y]
         
         self.change = 1 
         self.loop = 0
@@ -614,8 +615,8 @@ def addToArray(array,x,y,val,brushSize):
 
 def main():
     
-    nelx=20
-    nely=20
+    nelx=120
+    nely=60
     volfrac=0.4
     rmin=5.4
     penal=3.0
