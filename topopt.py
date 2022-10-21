@@ -12,7 +12,7 @@ from functools import partial
 p=0
 
 # MAIN DRIVER
-def main(nelx,nely,volfrac,penal,rmin,ft):
+def main(nelx,nely,volfrac,penal,rmin,ft,loads):
 	print("Minimum compliance problem with OC")
 	print("ndes: " + str(nelx) + " x " + str(nely))
 	print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
@@ -120,11 +120,11 @@ def main(nelx,nely,volfrac,penal,rmin,ft):
 	passive = np.zeros((nely) * (nelx))
 	for i in range(nelx):
 		for j in range(nely):
-			if np.sqrt((j-50)**2+(i-60)**2) < 20:
+			if np.sqrt((j-loads[0][0])**2+(i-loads[0][1])**2) < loads[0][2]:
 				passive[IX(i,j)] = 1
-			if np.sqrt((j-35)**2+(i-20)**2) < 15:
+			if np.sqrt((j-loads[1][0])**2+(i-loads[0][1])**2) < loads[0][2]:
 				passive[IX(i,j)] = 1
-			if np.sqrt((j-20)**2+(i-60)**2) < 10:
+			if np.sqrt((j-loads[2][0])**2+(i-loads[0][1])**2) < loads[0][2]:
 				passive[IX(i,j)] = 1
 	
 
@@ -285,6 +285,10 @@ if __name__ == "__main__":
 	rmin=5.4
 	penal=3.0
 	ft=0 # ft==0 -> sens, ft==1 -> dens
+	circle_1 = [50,60,20]
+	circle_2 = [35,20,15]
+	circle_3 = [20,60,10]
+	loads = [circle_1,circle_2,circle_3]
 	import sys
 	if len(sys.argv)>1: nelx   =int(sys.argv[1])
 	if len(sys.argv)>2: nely   =int(sys.argv[2])
@@ -292,6 +296,7 @@ if __name__ == "__main__":
 	if len(sys.argv)>4: rmin   =float(sys.argv[4])
 	if len(sys.argv)>5: penal  =float(sys.argv[5])
 	if len(sys.argv)>6: ft     =int(sys.argv[6])
-	main(nelx,nely,volfrac,penal,rmin,ft)
+	print(loads)
+	main(nelx,nely,volfrac,penal,rmin,ft,loads)
 
 
