@@ -3,6 +3,7 @@ import math
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
+from matplotlib import pyplot as plt
 
 """
 Pygame based real time part simulator
@@ -14,14 +15,17 @@ Controls:
         s - decrease brush size
         d - clear everything
         space - clear only part
+        k - plot anchors and forces(requires you to fully exit out of the plots before the sim will continue)
 
     mouse:
         Left button(brush) - place/activate tool
         Left button(vector) - begin Drawing Vector
         Left buttion(clear vector) - remove vector from list(pops vectors from array each frame so either click quickly to delete last vector or hold to delete all vectors)
+        Left button(slider) - activate slider to move around(slider will stay active until you right click)
 
         Right buttion(brush) - remove current item
         Right button(vector) - create vector( will only create if the vector is long enough in the correct direction)
+        Right button(slider) - deactivate slider to stop moving it around
 
         Note that the canvas that a tool brushes onto is shared for some tools adding another tool over it may delet what is currently there and deleting with one tool may also delete for other tools.
 
@@ -30,10 +34,9 @@ Controls:
 
 Problems to resolve:
     - sometimes the entire part just fills itself in with material.
-    - getting the GUI elements to line up and fit into the optomizer elements
+    - (solved)getting the GUI elements to line up and fit into the optomizer elements
         - Mostly for the vectors
         - the Force fill and force empty are correct and do line up with the part
-        - I am not sure about the 
     - Not really code but knowing what items are required by the optomizer to be stable and actually run
         - currently the baseline is set that a single force and 5 or more achored points is required befor it will run
 
@@ -347,10 +350,10 @@ class topOpter:
                 - vertical is odd
         """
         def getCorners(x,y):
-            elementNum = self.nelx*x + y
+            elementNum = (self.nely+1)*x + y
             cornerTL = [2*elementNum,2*elementNum+1]
             cornerBL = [2*elementNum+2,2*elementNum+3]
-            element1over = self.nelx*(x+1) + y
+            element1over = (self.nely+1)*(x+1) + y
             cornerTR = [2*element1over,2*element1over+1]
             cornerBR = [2*element1over+2,2*element1over+3]
 
@@ -396,25 +399,21 @@ class topOpter:
 
     def updateForceVectors(self,vectorArray):
         def getCorners(x,y):
-            elementNum = self.nelx*x + y
+            elementNum = (self.nely+1)*x + y
             cornerTL = [2*elementNum,2*elementNum+1]
-            cornerBL = [2*elementNum+2,2*elementNum+3]
-            element1over = self.nelx*(x+1) + y
-            cornerTR = [2*element1over,2*element1over+1]
-            cornerBR = [2*element1over+2,2*element1over+3]
 
-            return cornerTL,cornerTR,cornerBL,cornerBR
+            return cornerTL
 
         forces =[]
         for x,y,vx,vy in vectorArray:
             if(vx == 0):
                 #force in y direction
-                cornerTL,cornerTR,cornerBL,cornerBR = getCorners(x,y)
+                cornerTL = getCorners(x,y)
                 force = vy/4
                 forces.append([cornerTL[1],force])
             elif(vy == 0):
                 #force in x direction
-                cornerTL,cornerTR,cornerBL,cornerBR = getCorners(x,y)
+                cornerTL = getCorners(x,y)
                 force = vx/4
                 forces.append([cornerTL[0],force])
         
@@ -434,6 +433,101 @@ class topOpter:
 
         self.change = 1 
         self.loop = 0
+
+    def showAnchors(self):
+        print("Anchors")
+        fixed = np.zeros(self.ndof)
+        fixed[self.free] = 1
+        self.drawPlots(fixed)
+    
+    def showForces(self):
+        print("forceVectors")
+
+        for i in range(self.numberOfForces):
+            print("force:",i)
+            self.drawPlots(self.f[:,i])
+
+    def drawPlots(self,arr):
+        print("arr1.shape = {}".format(arr.shape))
+        l = max(arr.shape)//2
+
+        arr = arr.reshape((2,l),order='F')
+        dof_x = arr[0,:]
+        dof_y = arr[1,:]
+
+        print("arr2.shape = {}".format(arr.shape))
+        print("dof_x.shape = {}".format(dof_x.shape))
+        print("dof_y.shape = {}".format(dof_y.shape))
+        
+        fig,ax = plt.subplots(2)
+        ax[0].imshow(dof_x.reshape((self.nelx+1,self.nely+1)).T)
+        ax[0].set_title("X")
+        ax[1].imshow(dof_y.reshape((self.nelx+1,self.nely+1)).T)
+        ax[1].set_title("Y")
+        plt.show()
+        print()
+
+class UI_Slider:
+    def __init__(self,x,y,width,height,minVal,maxVal):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.rectVal = [x,y,width,height]
+        self.minVal = minVal
+        self.maxVal = maxVal
+        self.currentNum = (maxVal-minVal)/2 + minVal
+        self.pixelMin = int(self.x + self.width/10)
+        self.pixelMax = int(self.x + 0.9*self.width)
+        self.lineStart = [self.pixelMin, int(self.y + self.height/3)]
+        self.lineEnd = [self.pixelMax, self.lineStart[1]]
+        self.currentLoc = [int(self.x + self.width/2),self.lineStart[1]]
+        self.active = False
+    
+    def updateValues(self,minVal,maxVal):
+        self.minVal = minVal
+        self.maxVal = maxVal
+        self.currentNum = (maxVal-minVal)/2 + minVal
+    
+    def draw(self):
+        pygame.draw.rect(screen,WHITE,self.rectVal)
+        pygame.draw.rect(screen, BLACK,self.rectVal,1)
+        pygame.draw.line(screen,BLACK,self.lineStart,self.lineEnd,1)
+        pygame.draw.circle(screen, RED, self.currentLoc, 3)
+        textsurface = Arial_10.render(str(int(self.currentNum*10)/10), False, BLACK)
+        screen.blit(textsurface,[self.currentLoc[0]+5,self.currentLoc[1]+10])
+    
+    def reMap(self):
+        self.currentNum = ((self.currentLoc[0]- self.pixelMin) / (self.pixelMax - self.pixelMin))*(self.maxVal - self.minVal) + self.minVal
+
+    def update(self,pos,pressed):
+        if(self.active):
+            newVal = pos[0]
+            if(newVal > self.pixelMax):
+                newVal = self.pixelMax
+            elif(newVal < self.pixelMin):
+                newVal = self.pixelMin
+            self.currentLoc[0] = newVal
+            self.reMap()
+            if(pressed[2]):
+                self.active = False
+        elif(pressed[0]):
+            if(pos[0] > self.x and pos[1] > self.y and pos[0] < self.x+self.width and pos[1] < self.y+self.height):
+                self.active = True
+
+        return self.currentNum
+
+    def setVal(self,newVal):
+        if(newVal > self.maxVal):
+            self.currentNum = self.maxVal
+        elif(newVal < self.minVal):
+            self.currentNum = self.minVal
+        else:
+            self.currentNum = newVal
+        self.currentLoc[0] = int(((self.currentNum- self.minVal) / (self.maxVal - self.minVal))*(self.pixelMax - self.pixelMin) + self.pixelMin)
+        return self.currentNum
+  
+
 
 def updateImageDropOff(imageArray,val):
 	#remap image from [-1,0] to some other range
@@ -500,9 +594,9 @@ def drawPart(nelx,nely,passiveArray,fixedArray,pixelSize,boundingRect,vectors,pa
                 pixelColor = colorAdd(pixelColor,DARK_RED)
             if(abs(partArray[x,y]) > pMin):
                 pixelColor = interpolateColor(BLACK,pixelColor,abs(partArray[x,y]))
-                pygame.draw.rect(screen,pixelColor,[boundingRect[0]+x*pixelSize,boundingRect[1]+y*pixelSize,pixelSize+1,pixelSize+1])
+                pygame.draw.rect(screen,pixelColor,[boundingRect[0]+x*pixelSize,boundingRect[1]+y*pixelSize,pixelSize,pixelSize])
             elif(c > 0):
-                pygame.draw.rect(screen,pixelColor,[boundingRect[0]+x*pixelSize,boundingRect[1]+y*pixelSize,pixelSize+1,pixelSize+1])
+                pygame.draw.rect(screen,pixelColor,[boundingRect[0]+x*pixelSize,boundingRect[1]+y*pixelSize,pixelSize,pixelSize])
 
     for x,y,Vx,Vy in vectors:
         pygame.draw.line(screen,RED,[boundingRect[0]+x*pixelSize,boundingRect[1]+y*pixelSize],[boundingRect[0]+(x-Vx)*pixelSize,boundingRect[1]+(y-Vy)*pixelSize])
@@ -542,11 +636,13 @@ def main():
     offset = 50
     pixelSize = (min(SIZE[0],SIZE[1]) - 2*offset)//max(nelx,nely)
     boundingRect = [offset,offset,pixelSize*nelx,pixelSize*nely]
+    materialRemovalSlider = UI_Slider(boundingRect[0],boundingRect[1]+boundingRect[3],boundingRect[2],offset,0,.99)
+    materialRemovalSlider.setVal(0)
 
     keyEvent = [3,"",False]  
     FramesPerSecond = 5
 
-    doubleClick = [False]*(int(FramesPerSecond/2))
+    
 
     drawModes = ["Force Free","Force Fill","Fixed X","Fixed Y","Fixed XY","Add Vector X","Add Vector Y","Clear Vectors"]
     mode = 0
@@ -558,13 +654,18 @@ def main():
     partUpdating = True
     parameterChanged = False
 
+    #clear out all preinitalized data from the part
+    partOptomizer.clearPart()
+    partOptomizer.updatePassives(passiveArray)
+    partOptomizer.updateFixed(fixedArray)
+    partOptomizer.updateForceVectors([])
+
     clock = pygame.time.Clock()
     done = False
     while not done:
         keyEvent = getKeyPressed(keyEvent[2])
         pos = pygame.mouse.get_pos()
         pressed = pygame.mouse.get_pressed()
-        doubleClick.append(pressed[0])
         if(keyEvent[0] == 0):
             done = True
         elif(keyEvent[1] == 'a'):
@@ -593,6 +694,12 @@ def main():
             brushSize -= 1
             if(brushSize < 1):
                 brushSize = 1
+        elif(keyEvent[1] == 'z'):
+            partOptomizer.showAnchors()
+            #input()
+            partOptomizer.showForces()
+            #input()
+            print("Done showing part.")
 
         if(pressed[0]):
             if(pos[0] >= boundingRect[0] and pos[0] < boundingRect[0]+boundingRect[2] and pos[1] >= boundingRect[1] and pos[1] < boundingRect[1]+boundingRect[3]):
@@ -612,7 +719,7 @@ def main():
                 elif(mode == 5 or mode == 6):
                     creatingVector = True
                     v_start = [x,y]
-                elif(mode == 7):
+                elif(mode == 7 and len(vectors) > 0):
                     vectors.pop()
                 
         elif(pressed[2]):
@@ -637,7 +744,7 @@ def main():
                         vectors.append([v_start[0],v_start[1],v_start[0] - v_end[0],0])
                 elif(mode == 6 and creatingVector):
                     creatingVector = False
-                    if(abs(y-v_start[1]) > 5):
+                    if(abs(y-v_start[1]) > 1):
                         v_end = [x,y]
                         vectors.append([v_start[0],v_start[1],0,v_start[1] - v_end[1]])
 
@@ -658,8 +765,10 @@ def main():
         # fixed array stores the achors for the part in the x,y directions
         # vectors is the list of force vectors(stored as [x,y,Vx,Vy])
         # part optomizer.GetPart() returns the current shape of the part
-        # the random 0.5 is the pmin witch is a dropoff value for drawing the part to remove any material less than pMin
-        drawPart(nelx,nely,passiveArray,fixedArray,pixelSize,boundingRect,vectors,partOptomizer.getPart(),0.25)
+        # the materialRemovalSlider update funtion is the pmin witch is a dropoff value for drawing the part to remove any material less than pMin
+        # the slider is finiky and requires you to right click it to unselect and stop sliding
+        drawPart(nelx,nely,passiveArray,fixedArray,pixelSize,boundingRect,vectors,partOptomizer.getPart(),materialRemovalSlider.update(pos,pressed))
+        materialRemovalSlider.draw()
         if(creatingVector):
             pygame.draw.line(screen, RED, [boundingRect[0]+v_start[0]*pixelSize,boundingRect[1]+v_start[1]*pixelSize], pos)
 
@@ -669,7 +778,6 @@ def main():
         pygame.display.flip()
 
         clock.tick(FramesPerSecond)
-        doubleClick.pop(0)
 
 main()
 pygame.quit()
