@@ -1,9 +1,8 @@
+
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 from matplotlib import pyplot as plt
-
-
 
 
 class topOpter:
@@ -93,8 +92,7 @@ class topOpter:
 		#self.f[2*IX(10,10),0] = 0.5
 		
 
-		
-
+	
 
 		#passive elements
 		self.passive = np.zeros((nely) * (nelx))
@@ -366,22 +364,7 @@ class topOpter:
 			print("force:",i)
 			self.drawPlots(self.f[:,i])
 
+
 	def drawPlots(self,arr):
 		print("arr1.shape = {}".format(arr.shape))
 		l = max(arr.shape)//2
-
-		arr = arr.reshape((2,l),order='F')
-		dof_x = arr[0,:]
-		dof_y = arr[1,:]
-
-		print("arr2.shape = {}".format(arr.shape))
-		print("dof_x.shape = {}".format(dof_x.shape))
-		print("dof_y.shape = {}".format(dof_y.shape))
-		
-		fig,ax = plt.subplots(2)
-		ax[0].imshow(dof_x.reshape((self.nelx+1,self.nely+1)).T)
-		ax[0].set_title("X")
-		ax[1].imshow(dof_y.reshape((self.nelx+1,self.nely+1)).T)
-		ax[1].set_title("Y")
-		plt.show()
-		print()
