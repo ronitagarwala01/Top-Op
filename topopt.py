@@ -166,6 +166,9 @@ class topOpter:
 	
 	def getPart(self):
 		return self.xPhys.reshape((self.nelx,self.nely))
+	
+	def getDerivetiveOfSensitivity(self):
+		return self.dc.reshape((self.nelx,self.nely))
 
 	def clearPart(self):
 		self.x=self.volfrac * np.ones(self.nely*self.nelx,dtype=float)
@@ -204,7 +207,20 @@ class topOpter:
 		xnew=np.zeros(self.nelx*self.nely)
 		while ((l2-l1)/(l1+l2))>1e-3:
 			lmid=0.5*(l2+l1)
-			xnew[:]= np.maximum(0.0,np.maximum(self.x-move,np.minimum(1.0,np.minimum(self.x+move,self.x*np.sqrt(-self.dc/self.dv/lmid)))))
+			B_e = -self.dc/(self.dv*lmid)
+			"""
+			The following line of code is confusing be it ultimately boils down to the following peicewise function:
+			x_min = max(0,x_e-move) # the new min value of x_e must be either 0 or it's alllocated move distance in the negative direction
+			x_max = min(1,x_e+move) # the new max value of x_e must be either 1 or it's alllocated move distance in the positve direction
+
+			if(x_e * sqrt(B_e) <= x_min):
+				x_new = x_min
+			elif(x_e * sqrt(B_e) >= x_max):
+				x_new = x_max
+			else:
+				x_new = x_e * sqrt(B_e)
+			"""
+			xnew[:]= np.maximum(0.0,np.maximum(self.x-move,np.minimum(1.0,np.minimum(self.x+move,self.x*np.sqrt(B_e))))) # just a peicewise function in a single line
 
 			#do the passives
 			xnew = np.where(self.passive == 1, 0, xnew)
