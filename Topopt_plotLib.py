@@ -10,17 +10,17 @@ from topopt import topOpter
 
 
 def updateImageDropOff(imageArray,val):
-	#remap image from [-1,0] to some other range
-	rec = val/(val+1)
-	#v = rec*np.ones(imageArray.shape)
-	above0 = np.where(imageArray > val,0,(imageArray/(val+1)) - rec)
+    #remap image from [-1,0] to some other range
+    rec = val/(val+1)
+    #v = rec*np.ones(imageArray.shape)
+    above0 = np.where(imageArray > val,0,(imageArray/(val+1)) - rec)
 
-	return above0
-
-
+    return above0
 
 
-# The real main driver	
+
+
+# The real main driver    
 if __name__ == "__main__":
     # Default input parameters
     nelx=160
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens
     # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
-	# and the counterclockwise angle of the force in degrees.
+    # and the counterclockwise angle of the force in degrees.
     circle_1 = [50,60,20,40,63]
     circle_2 = [35,20,15,50,115]
     circle_3 = [20,60,10,60,275]
@@ -47,38 +47,38 @@ if __name__ == "__main__":
 
 
 
-	t = topOpter(nelx,nely,volfrac,penal,rmin,ft)
-	#t.updateLoads(loads)
-	anchorArray = np.zeros((nelx,nely))
-	anchorArray[1,2] = 3
-	t.updateFixed(anchorArray)
-	t.updateForceVectors([[150,10,0,1]])
+    t = topOpter(nelx,nely,volfrac,penal,rmin,ft)
+    #t.updateLoads(loads)
+    anchorArray = np.zeros((nelx,nely))
+    anchorArray[1,2] = 3
+    t.updateFixed(anchorArray)
+    t.updateForceVectors([[150,10,0,1]])
 
-	
-	
+    
+    
 
 
-	plt.ion() # Ensure that redrawing is possible
-	fig,ax = plt.subplots(2,1)
-	im1 = ax[0].imshow(t.getPart().T, cmap='gray', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-	fig.show()
-	sliderAxis = fig.add_axes([0.1, 0.25, 0.0225, 0.63])
-	slider_for_material = Slider(
-		ax=sliderAxis,
-		label="p",
-		valmin=-.999,
-		valmax=0,
-		valinit=0,
-		orientation="vertical"
-	)
-	prevSliderVal = slider_for_material.val
-	im2 = ax[1].imshow(t.getDerivetiveOfSensitivity().T, cmap='plasma_r', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-	done = False
-	while(plt.fignum_exists(fig.number)):
-		im1.set_array(updateImageDropOff(-t.getPart().T,slider_for_material.val))
-		im2.set_array(t.getDerivetiveOfSensitivity().T)
-		fig.canvas.draw()
-		fig.canvas.flush_events()
-		done = t.itterate()
+    plt.ion() # Ensure that redrawing is possible
+    fig,ax = plt.subplots(2,1)
+    im1 = ax[0].imshow(t.getPart().T, cmap='gray', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
+    fig.show()
+    sliderAxis = fig.add_axes([0.1, 0.25, 0.0225, 0.63])
+    slider_for_material = Slider(
+        ax=sliderAxis,
+        label="p",
+        valmin=-.999,
+        valmax=0,
+        valinit=0,
+        orientation="vertical"
+    )
+    prevSliderVal = slider_for_material.val
+    im2 = ax[1].imshow(t.getDerivetiveOfSensitivity().T, cmap='plasma_r', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
+    done = False
+    while(plt.fignum_exists(fig.number)):
+        im1.set_array(updateImageDropOff(-t.getPart().T,slider_for_material.val))
+        im2.set_array(t.getDerivetiveOfSensitivity().T)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+        done = t.itterate()
 
 

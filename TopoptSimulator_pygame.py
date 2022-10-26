@@ -171,12 +171,12 @@ class UI_Slider:
 
 
 def updateImageDropOff(imageArray,val):
-	#remap image from [-1,0] to some other range
-	rec = val/(val+1)
-	#v = rec*np.ones(imageArray.shape)
-	above0 = np.where(imageArray > val,0,(imageArray/(val+1)) - rec)
+    #remap image from [-1,0] to some other range
+    rec = val/(val+1)
+    #v = rec*np.ones(imageArray.shape)
+    above0 = np.where(imageArray > val,0,(imageArray/(val+1)) - rec)
 
-	return above0
+    return above0
 
 
 def dist(p1,p2):
