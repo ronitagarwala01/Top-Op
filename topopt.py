@@ -1,3 +1,4 @@
+
 # A 165 LINE TOPOLOGY OPTIMIZATION CODE BY NIELS AAGE AND VILLADS EGEDE JOHANSEN, JANUARY 2013
 from __future__ import division
 import numpy as np
@@ -17,6 +18,8 @@ def main(nelx,nely,volfrac,penal,rmin,ft,loads):
 	print("ndes: " + str(nelx) + " x " + str(nely))
 	print("volfrac: " + str(volfrac) + ", rmin: " + str(rmin) + ", penal: " + str(penal))
 	print("Filter method: " + ["Sensitivity based","Density based"][ft])
+
+	print(loads)
 
 	# Max and min stiffness
 	Emin=1e-9
@@ -122,9 +125,9 @@ def main(nelx,nely,volfrac,penal,rmin,ft,loads):
 		for j in range(nely):
 			if np.sqrt((j-loads[0][0])**2+(i-loads[0][1])**2) < loads[0][2]:
 				passive[IX(i,j)] = 1
-			if np.sqrt((j-loads[1][0])**2+(i-loads[0][1])**2) < loads[0][2]:
+			if np.sqrt((j-loads[1][0])**2+(i-loads[1][1])**2) < loads[1][2]:
 				passive[IX(i,j)] = 1
-			if np.sqrt((j-loads[2][0])**2+(i-loads[0][1])**2) < loads[0][2]:
+			if np.sqrt((j-loads[2][0])**2+(i-loads[2][1])**2) < loads[2][2]:
 				passive[IX(i,j)] = 1
 	
 
@@ -296,7 +299,7 @@ if __name__ == "__main__":
 	if len(sys.argv)>4: rmin   =float(sys.argv[4])
 	if len(sys.argv)>5: penal  =float(sys.argv[5])
 	if len(sys.argv)>6: ft     =int(sys.argv[6])
-	print(loads)
+	
 	main(nelx,nely,volfrac,penal,rmin,ft,loads)
 
 
