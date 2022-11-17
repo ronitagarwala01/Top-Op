@@ -21,18 +21,22 @@ def updateImageDropOff(imageArray,val):
 
 
 def cantileverSetup(topopter :topOpter):
-    #t.updateLoads(loads)
+    """
+    Setup the optimization enviroment for the cantilever beam.
+    This is a bar that is anchored on the left side and has a force applied to it on the far left side
+
+    Because this function changes variables within an object there is no need to return anything
+    """
     nelx = topopter.nelx
     nely = topopter.nely
     anchorArray = np.zeros((nelx,nely))
+    #fully anchor the far left side
     for y in range(nely):
         anchorArray[0,y] = 3
-    #anchorArray[nelx-1,nely-1] = 3
-
     topopter.updateFixed(anchorArray)
+
+    # apply a force to the far richt side at the center
     topopter.updateForceVectors([[nelx-1,nely//2,0,1]])
-    topopter.complianceMax = 10
-    topopter.minChange = 0.01
 
 
 # The real main driver    
@@ -64,43 +68,70 @@ if __name__ == "__main__":
 
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft)
     cantileverSetup(t)
+    """
+    Durring testing the size of the part can change larger number of elements take increasinly more compuational power to optimize
 
+    complianceMax is the maximum allowable movement allowed within the part. (10 is just arbitrary number that looks good)
 
-    itterateionArray = []
-    massOverItterationsArray=[]
+    maxElementChange is the allowable movement of each element from its previous value to its new optimized value
+     - is an interval between 0 and 1 
+        - it can be higher than 1 but it is clamped so that will have no impact on it
+        - If it is less than zero, you will break the system.
+     - decreasing max element change (values closer to but not equal to 0) increases the number of required itterations to part comletion(increasing time) but also increases acuracy
+     - increasing max element change (values closer to 1) decrease the number of required itterations but increases inacuracy. 
+        -The optimizer will also run a bit longer per itteration but is still faster than a low change ammount
+
+    minChange is the minimum change required before the optimizer is considered 'done'
+     - the optimizer calculates change as the max change of any single element in the part. 
+        Therefore if the max change of an element is lower than minchange the optimizer will think it is done. 
+        This may lead to an unfinished part especially if maxElementChange is low
+    """
+    t.complianceMax = 10
+    t.maxElementChange = 0.1
+    t.minChange = 0.005
+    
+    # building the matplotlib plot
+    itterateionArray = [] #stores the xvalues of the mass over time plot
+    massOverItterationsArray=[] # stores the y-values of the mass over time plot
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots(2,1)
-    im1 = ax[0].imshow(t.getPart().T, cmap='gray', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-    #im2 = ax[1].imshow(t.getDerivetiveOfSensitivity().T, cmap='plasma_r', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-    im2 = ax[1].scatter(itterateionArray,massOverItterationsArray,color='blue')
+    im1 = ax[0].imshow(t.getPart().T, cmap='gray', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))#setup the part model
+    im2 = ax[1].scatter(itterateionArray,massOverItterationsArray,color='blue')#setup the mass over time graph
+    #label the mass over time graph
+    ax[1].set_ylabel("Mass")
+    ax[1].set_xlabel("Itterations")
     fig.show()
-    sliderAxis = fig.add_axes([0.1, 0.25, 0.0225, 0.63])
-    slider_for_material = Slider(
-        ax=sliderAxis,
-        label="p",
-        valmin=-.999,
-        valmax=0,
-        valinit=0,
-        orientation="vertical"
-    )
-    prevSliderVal = slider_for_material.val
-    done = True
+
+
+    #begin actual optimzation loop
+    optimizing = True
     timeStart = time()
     timerOn = True
-    while(plt.fignum_exists(fig.number)):
-        im1.set_array(updateImageDropOff(-t.getPart().T,slider_for_material.val))
-        #im2.set_array(t.getDerivetiveOfSensitivity().T)
-        im2 = ax[1].scatter(itterateionArray,massOverItterationsArray,color='blue')
-        fig.canvas.draw()
+    while(plt.fignum_exists(fig.number)): #while the user has the figure open
+
+        #Clear the canvas
         fig.canvas.flush_events()
-        done = t.itterate()
-        if(done):
+        
+        #optimize the part
+        optimizing = t.itterate()
+
+        #update the outputs
+        if(optimizing):
+            #update the mass over time graph
             itterateionArray.append(t.loop)
             massOverItterationsArray.append(t.getMassWithPenalty(0))
-        elif(timerOn):
+
+            #update the graph with the current part model
+            im1.set_array(-t.getPart().T)
+            im2 = ax[1].scatter(itterateionArray,massOverItterationsArray,color='blue')
+
+        elif(timerOn): #if finished optimizing then read out the time it took to complete the part
             timerOn = False
             timeEnd = time()
             print("Time elapsed: {:.2f}".format(timeEnd-timeStart))
+
+        #redraw the canvas
+        fig.canvas.draw()
 
 
 
