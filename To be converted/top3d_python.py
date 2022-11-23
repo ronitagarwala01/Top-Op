@@ -3,15 +3,20 @@ This code needs to be converted from matlab to python
 
 You will need to convert the matlab code into python code.
 most of this will require changing the array indexing
+This is an attempt at a 1-1 translation from MATLAB to python, this will likely not work
 
 Notes:
     - Most of the generic matlab functions have numpy implementations
+    - Matlab indexes start at 1 not 0 so they at len() not len()-1
     - When you see <variable> = 0:<variable | integer>
         - it is equivalent to <variable> = np.arange(<variable | integer>)
+
+    - initVal:step:endVal := Increment index by the value step on each iteration, or decrements index when step is negative.
 
 """
 # A 169 LINE 3D TOPOLOGY OPTIMIZATION CODE BY LIU AND TOVAR (JUL 2013)
 import numpy as np
+from numpy.matlib import repmat
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 from matplotlib import colors
@@ -49,60 +54,63 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
     nodegrd = np.reshape(np.arange((nely+1)*(nelx+1)),(nely+1,nelx+1)) #node grid
     nodeids = np.reshape(nodegrd[1:-2,1:-2],(nely*nelx,1)) #node ids
 
-    """
-    Everything above should be correctly implemented in python( with exception of the actual function code)
 
-    start converting the code below here
-    """
-    nodeidz = (0:(nely+1)*(nelx+1):(nelz-1)*(nely+1)*(nelx+1))
-    nodeids = repmat(nodeids,size(nodeidz))+repmat(nodeidz,size(nodeids))
-    edofVec = 3*nodeids(:)+1
-    edofMat = repmat(edofVec,1,24)+ ...
-        repmat([0 1 2 3*nely + [3 4 5 0 1 2] -3 -2 -1 ...
-        3*(nely+1)*(nelx+1)+[0 1 2 3*nely + [3 4 5 0 1 2] -3 -2 -1]],nele,1)
-    iK = reshape(kron(edofMat,ones(24,1))',24*24*nele,1)
-    jK = reshape(kron(edofMat,ones(1,24))',24*24*nele,1)
+    #nodeidz = (0:(nely+1)*(nelx+1):(nelz-1)*(nely+1)*(nelx+1))
+    nodeidz = np.arange(0,(nelz-1)*(nely+1)*(nelx+1),step=(nely+1)*(nelx+1))
+    nodeids = nodeids* np.ones(len(nodeidz)) + nodeidz*np.ones(len(nodeids))
+
+    edofVec = 3*nodeids[:]+1
+    #do I know if this next line works? no.
+    edofMat = repmat(edofVec,1,24) + repmat([0, 1, 2, 3*nely + [3, 4, 5, 0, 1, 2], -3, -2, -1,  3*(nely+1)*(nelx+1)+[0, 1, 2, 3*nely + [3, 4, 5, 0, 1, 2,], -3, -2, -1]],nele,1)
+
+    iK = np.reshape(np.kron(edofMat,np.ones((24,1))), (24*24*nele,1))
+    jK = np.reshape(np.kron(edofMat,np.ones((1,24))), (24*24*nele,1))
 
     # PREPARE FILTER
-    iH = ones(nele*(2*(ceil(rmin)-1)+1)^2,1)
-    jH = ones(size(iH))
-    sH = zeros(size(iH))
+    iH = np.ones((nele*(2*(np.ceil(rmin)-1)+1)^2,1))
+    jH = np.ones(len(iH))
+    sH = np.zeros(len(iH))
     k = 0
-    for k1 = 1:nelz
-        for i1 = 1:nelx
-            for j1 = 1:nely
+    for k1 in range(nelz):
+        for i1 in range(nelx):
+            for j1 in range(nely):
                 e1 = (k1-1)*nelx*nely + (i1-1)*nely+j1
-                for k2 = max(k1-(ceil(rmin)-1),1):min(k1+(ceil(rmin)-1),nelz)
-                    for i2 = max(i1-(ceil(rmin)-1),1):min(i1+(ceil(rmin)-1),nelx)
-                        for j2 = max(j1-(ceil(rmin)-1),1):min(j1+(ceil(rmin)-1),nely)
+                for k2 in range(max(k1-(np.ceil(rmin)-1),1),min(k1+(np.ceil(rmin)-1),nelz)):
+                    for i2 in range(max(i1-(np.ceil(rmin)-1),1),min(i1+(np.ceil(rmin)-1),nelx)):
+                        for j2 in range(max(j1-(np.ceil(rmin)-1),1),min(j1+(np.ceil(rmin)-1),nely))
                             e2 = (k2-1)*nelx*nely + (i2-1)*nely+j2
                             k = k+1
-                            iH(k) = e1
-                            jH(k) = e2
-                            sH(k) = max(0,rmin-sqrt((i1-i2)^2+(j1-j2)^2+(k1-k2)^2))
-                        end
-                    end
-                end
-            end
-        end
-    end
-    H = sparse(iH,jH,sH)
-    Hs = sum(H,2)
+                            iH[k] = e1
+                            jH[k] = e2
+                            sH[k] = max(0,rmin-np.sqrt((i1-i2)^2+(j1-j2)^2+(k1-k2)^2))
+   
+
+
+    #H = sparse(iH,jH,sH)
+    H = coo_matrix((sH, (iH,jH))).tocsc() 
+    Hs = H.sum(1)
 
     # INITIALIZE ITERATIOn
-    x = repmat(volfrac,[nely,nelx,nelz])
-    xPhys = x 
+    x = volfrac * np.ones(nely*nelx*nelz)
+    xPhys = x.copy() 
     loop = 0 
     change = 1
     # START ITERATION
-    while change > tolx && loop < maxloop
-        loop = loop+1
+    while change > tolx and loop < maxloop:
+        loop = loop + 1
 
         # FE-ANALYSIS
-        sK = reshape(KE(:)*(Emin+xPhys(:)'.^penal*(E0-Emin)),24*24*nele,1)
-        K = sparse(iK,jK,sK) K = (K+K')/2
-        U(freedofs,:) = K(freedofs,freedofs)\F(freedofs,:)
+        sK = np.reshape(KE[:] * (Emin+(xPhys[:]**penal)*(E0-Emin)),24*24*nele,1)
+        #K = sparse(iK,jK,sK) K = (K+K')/2
+        K = coo_matrix((sK,(iK,jK))).tocsc() 
+        #U[freedofs,:] = K(freedofs,freedofs)\F[freedofs,:]
+        U[freedofs,:] = spsolve(K,F[freedofs,:])
+        
+        """
+        Everything above should be correctly implemented in python( with exception of the actual function code)
 
+        start converting the code below here
+        """
         # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
         ce = reshape(sum((U(edofMat)*KE).*U(edofMat),2),[nely,nelx,nelz])
         c = sum(sum(sum((Emin+xPhys.^penal*(E0-Emin)).*ce)))
