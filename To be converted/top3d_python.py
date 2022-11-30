@@ -63,8 +63,8 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
     #do I know if this next line works? no.
     edofMat = repmat(edofVec,1,24) + repmat([0, 1, 2, 3*nely + [3, 4, 5, 0, 1, 2], -3, -2, -1,  3*(nely+1)*(nelx+1)+[0, 1, 2, 3*nely + [3, 4, 5, 0, 1, 2,], -3, -2, -1]],nele,1)
 
-    iK = np.reshape(np.kron(edofMat,np.ones((24,1))), (24*24*nele,1))
-    jK = np.reshape(np.kron(edofMat,np.ones((1,24))), (24*24*nele,1))
+    iK = np.reshape(np.kron(edofMat,np.ones((24,1))).T, (24*24*nele,1))
+    jK = np.reshape(np.kron(edofMat,np.ones((1,24))).T, (24*24*nele,1))
 
     # PREPARE FILTER
     iH = np.ones((nele*(2*(np.ceil(rmin)-1)+1)^2,1))
@@ -77,7 +77,7 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
                 e1 = (k1-1)*nelx*nely + (i1-1)*nely+j1
                 for k2 in range(max(k1-(np.ceil(rmin)-1),1),min(k1+(np.ceil(rmin)-1),nelz)):
                     for i2 in range(max(i1-(np.ceil(rmin)-1),1),min(i1+(np.ceil(rmin)-1),nelx)):
-                        for j2 in range(max(j1-(np.ceil(rmin)-1),1),min(j1+(np.ceil(rmin)-1),nely))
+                        for j2 in range(max(j1-(np.ceil(rmin)-1),1),min(j1+(np.ceil(rmin)-1),nely)):
                             e2 = (k2-1)*nelx*nely + (i2-1)*nely+j2
                             k = k+1
                             iH[k] = e1
@@ -100,9 +100,10 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
         loop = loop + 1
 
         # FE-ANALYSIS
-        sK = np.reshape(KE[:] * (Emin+(xPhys[:]**penal)*(E0-Emin)),24*24*nele,1)
+        sK = np.reshape(KE[:] * (Emin+(xPhys[:].T**penal)*(E0-Emin)),24*24*nele,1)
         #K = sparse(iK,jK,sK) K = (K+K')/2
         K = coo_matrix((sK,(iK,jK))).tocsc() 
+        K = (K+K.T)/2
         #U[freedofs,:] = K(freedofs,freedofs)\F[freedofs,:]
         U[freedofs,:] = spsolve(K,F[freedofs,:])
         
@@ -112,105 +113,126 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
         start converting the code below here
         """
         # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
-        ce = reshape(sum((U(edofMat)*KE).*U(edofMat),2),[nely,nelx,nelz])
-        c = sum(sum(sum((Emin+xPhys.^penal*(E0-Emin)).*ce)))
-        dc = -penal*(E0-Emin)*xPhys.^(penal-1).*ce
-        dv = ones(nely,nelx,nelz)
+        ce = np.reshape(np.sum((U[edofMat]*KE)*U[edofMat],axis=2),[nely,nelx,nelz])
+        c = np.sum(np.sum(np.sum((Emin+(xPhys**penal)*(E0-Emin))*ce)))
+        dc = -penal*(E0-Emin)*(xPhys**(penal-1))*ce
+        dv = np.ones(nely,nelx,nelz)
 
         # FILTERING AND MODIFICATION OF SENSITIVITIES
-        dc(:) = H*(dc(:)./Hs)  
-        dv(:) = H*(dv(:)./Hs)
+        dc[:] = H*(dc[:]/Hs)  
+        dv[:] = H*(dv[:]/Hs)
 
         # OPTIMALITY CRITERIA UPDATE
-        l1 = 0 l2 = 1e9 move = 0.2
-        while (l2-l1)/(l1+l2) > 1e-3
+        l1 = 0
+        l2 = 1e9
+        move = 0.2
+        while ((l2-l1)/(l1+l2) > 1e-3):
             lmid = 0.5*(l2+l1)
-            xnew = max(0,max(x-move,min(1,min(x+move,x.*sqrt(-dc./dv/lmid)))))
-            xPhys(:) = (H*xnew(:))./Hs
-            if sum(xPhys(:)) > volfrac*nele, l1 = lmid else l2 = lmid end
-        end
-        change = max(abs(xnew(:)-x(:)))
+            xnew = np.max(0,np.max(x-move,np.min(1,np.min(x+move,x*np.sqrt(-dc/dv/lmid)))))
+            xPhys[:] = (H*xnew[:])/Hs
+            if (np.sum(xPhys[:]) > volfrac*nele):
+                l1 = lmid 
+            else: 
+                l2 = lmid
+        
+        change = np.linalg.norm(xnew[:]-x[:], ord = np.inf)
         x = xnew
 
         # PRINT RESULTS
-        fprintf(' It.:#5i Obj.:#11.4f Vol.:#7.3f ch.:#7.3f\n',loop,c,mean(xPhys(:)),change)
+        print("It.{:#5i} Obj.{:#11.4f} Vol.{:#7.3f} ch.{:#7.3f}".format(loop,c,np.mean(xPhys[:]),change))
 
         # PLOT DENSITIES
-        if displayflag, clf display_3D(xPhys) end ##ok<UNRCH>
+        if displayflag:
+            display_3D(xPhys) ##ok<UNRCH>
 
 
 
 # === GENERATE ELEMENT STIFFNESS MATRIX ===
 def lk_H8(nu):
-    A = [32 6 -8 6 -6 4 3 -6 -10 3 -3 -3 -4 -8
-        -48 0 0 -24 24 0 0 0 12 -12 0 12 12 12]
-    k = 1/144*A'*[1 nu]
+    A = np.array([[32, 6, -8, 6, -6, 4, 3, -6, -10, 3, -3, -3, -4, -8],
+        [-48, 0, 0, -24, 24, 0, 0, 0, 12, -12, 0, 12, 12, 12]])
+    k = 1/144*A.T*np.array([[1], [nu]])
 
-    K1 = [k(1) k(2) k(2) k(3) k(5) k(5)
-        k(2) k(1) k(2) k(4) k(6) k(7)
-        k(2) k(2) k(1) k(4) k(7) k(6)
-        k(3) k(4) k(4) k(1) k(8) k(8)
-        k(5) k(6) k(7) k(8) k(1) k(2)
-        k(5) k(7) k(6) k(8) k(2) k(1)]
-    K2 = [k(9)  k(8)  k(12) k(6)  k(4)  k(7)
-        k(8)  k(9)  k(12) k(5)  k(3)  k(5)
-        k(10) k(10) k(13) k(7)  k(4)  k(6)
-        k(6)  k(5)  k(11) k(9)  k(2)  k(10)
-        k(4)  k(3)  k(5)  k(2)  k(9)  k(12)
-        k(11) k(4)  k(6)  k(12) k(10) k(13)]
-    K3 = [k(6)  k(7)  k(4)  k(9)  k(12) k(8)
-        k(7)  k(6)  k(4)  k(10) k(13) k(10)
-        k(5)  k(5)  k(3)  k(8)  k(12) k(9)
-        k(9)  k(10) k(2)  k(6)  k(11) k(5)
-        k(12) k(13) k(10) k(11) k(6)  k(4)
-        k(2)  k(12) k(9)  k(4)  k(5)  k(3)]
-    K4 = [k(14) k(11) k(11) k(13) k(10) k(10)
-        k(11) k(14) k(11) k(12) k(9)  k(8)
-        k(11) k(11) k(14) k(12) k(8)  k(9)
-        k(13) k(12) k(12) k(14) k(7)  k(7)
-        k(10) k(9)  k(8)  k(7)  k(14) k(11)
-        k(10) k(8)  k(9)  k(7)  k(11) k(14)]
-    K5 = [k(1) k(2)  k(8)  k(3) k(5)  k(4)
-        k(2) k(1)  k(8)  k(4) k(6)  k(11)
-        k(8) k(8)  k(1)  k(5) k(11) k(6)
-        k(3) k(4)  k(5)  k(1) k(8)  k(2)
-        k(5) k(6)  k(11) k(8) k(1)  k(8)
-        k(4) k(11) k(6)  k(2) k(8)  k(1)]
-    K6 = [k(14) k(11) k(7)  k(13) k(10) k(12)
-        k(11) k(14) k(7)  k(12) k(9)  k(2)
-        k(7)  k(7)  k(14) k(10) k(2)  k(9)
-        k(13) k(12) k(10) k(14) k(7)  k(11)
-        k(10) k(9)  k(2)  k(7)  k(14) k(7)
-        k(12) k(2)  k(9)  k(11) k(7)  k(14)]
-    KE = 1/((nu+1)*(1-2*nu))*...
-        [ K1  K2  K3  K4
-        K2'  K5  K6  K3'
-        K3' K6  K5' K2'
-        K4  K3  K2  K1']
+    K1 = np.array([[k[1-1], k[2-1], k[2-1], k[3-1], k[5-1], k[5-1]],
+        [k[2-1], k[1-1], k[2-1], k[4-1], k[6-1], k[7-1]],
+        [k[2-1], k[2-1], k[1-1], k[4-1], k[7-1], k[6-1]],
+        [k[3-1], k[4-1], k[4-1], k[1-1], k[8-1], k[8-1]],
+        [k[5-1], k[6-1], k[7-1], k[8-1], k[1-1], k[2-1]],
+        [k[5-1], k[7-1], k[6-1], k[8-1], k[2-1], k[1-1]]])
+    K2 = np.array([[k[9-1],  k[8-1],  k[12-1], k[6-1],  k[4-1],  k[7-1]],
+        [k[8-1],  k[9-1],  k[12-1], k[5-1],  k[3-1],  k[5-1]],
+        [k[10-1], k[10-1], k[13-1], k[7-1],  k[4-1],  k[6-1]],
+        [k[6-1],  k[5-1],  k[11-1], k[9-1],  k[2-1],  k[10-1]],
+        [k[4-1],  k[3-1],  k[5-1],  k[2-1],  k[9-1],  k[12-1]],
+        [k[11-1], k[4-1],  k[6-1],  k[12-1], k[10-1], k[13-1]]])
+    K3 = np.array([[k[6-1],  k[7-1],  k[4-1],  k[9-1],  k[12-1], k[8-1]],
+        [k[7-1],  k[6-1],  k[4-1],  k[10-1], k[13-1], k[10-1]],
+        [k[5-1],  k[5-1],  k[3-1],  k[8-1],  k[12-1], k[9-1]],
+        [k[9-1],  k[10-1], k[2-1],  k[6-1],  k[11-1], k[5-1]],
+        [k[12-1], k[13-1], k[10-1], k[11-1], k[6-1],  k[4-1]],
+        [k[2-1],  k[12-1], k[9-1],  k[4-1],  k[5-1],  k[3-1]]])
+    K4 = np.array([[k[14-1], k[11-1], k[11-1], k[13-1], k[10-1], k[10-1]],
+        [k[11-1], k[14-1], k[11-1], k[12-1], k[9-1],  k[8-1]],
+        [k[11-1], k[11-1], k[14-1], k[12-1], k[8-1],  k[9-1]],
+        [k[13-1], k[12-1], k[12-1], k[14-1], k[7-1],  k[7-1]],
+        [k[10-1], k[9-1],  k[8-1],  k[7-1],  k[14-1], k[11-1]],
+        [k[10-1], k[8-1],  k[9-1],  k[7-1],  k[11-1], k[14-1]]])
+    K5 = np.array([[k[1-1], k[2-1],  k[8-1],  k[3-1], k[5-1],  k[4-1]],
+        [k[2-1], k[1-1],  k[8-1],  k[4-1], k[6-1],  k[11-1]],
+        [k[8-1], k[8-1],  k[1-1],  k[5-1], k[11-1], k[6-1]],
+        [k[3-1], k[4-1],  k[5-1],  k[1-1], k[8-1],  k[2-1]],
+        [k[5-1], k[6-1],  k[11-1], k[8-1], k[1-1],  k[8-1]],
+        [k[4-1], k[11-1], k[6-1],  k[2-1], k[8-1],  k[1-1]]])
+    K6 = np.array([[k[14-1], k[11-1], k[7-1],  k[13-1], k[10-1], k[12-1]],
+        [k[11-1], k[14-1], k[7-1],  k[12-1], k[9-1],  k[2-1]],
+        [k[7-1],  k[7-1],  k[14-1], k[10-1], k[2-1],  k[9-1]],
+        [k[13-1], k[12-1], k[10-1], k[14-1], k[7-1],  k[11-1]],
+        [k[10-1], k[9-1],  k[2-1],  k[7-1],  k[14-1], k[7-1]],
+        [k[12-1], k[2-1],  k[9-1],  k[11-1], k[7-1],  k[14-1]]])
+    KE = 1/((nu+1)*(1-2*nu))* np.array([[K1,  K2,  K3,  K4],
+                                        [K2.T,  K5,  K6,  K3.T],
+                                        [K3.T, K6,  K5.T, K2.T],
+                                        [K4,  K3,  K2,  K1.T]])
 # === DISPLAY 3D TOPOLOGY (ISO-VIEW) ===
-
 def display_3D(rho):
-    [nely,nelx,nelz] = size(rho)
-    hx = 1 hy = 1 hz = 1            # User-defined unit element size
-    face = [1 2 3 4 2 6 7 3 4 3 7 8 1 5 8 4 1 2 6 5 5 6 7 8]
-    set(gcf,'Name','ISO display','NumberTitle','off')
-    for k = 1:nelz
+    return
+
+
+"""
+def display_3D(rho):
+    nely,nelx,nelz = rho.shape
+    hx = 1 
+    hy = 1 
+    hz = 1            # User-defined unit element size
+    face = np.array([   [1, 2, 3, 4],
+                        [2, 6, 7, 3], 
+                        [4, 3, 7, 8], 
+                        [1, 5, 8, 4], 
+                        [1, 2, 6, 5], 
+                        [5, 6, 7, 8]])
+    #set(gcf,'Name','ISO display','NumberTitle','off')
+    for k in range(0,nelz):
         z = (k-1)*hz
-        for i = 1:nelx
+        for i in range(0,nelx):
             x = (i-1)*hx
-            for j = 1:nely
+            for j in range(0,nely):
                 y = nely*hy - (j-1)*hy
-                if (rho(j,i,k) > 0.5)  # User-defined display density threshold
-                    vert = [x y z x y-hx z x+hx y-hx z x+hx y z x y z+hxx y-hx z+hx x+hx y-hx z+hxx+hx y z+hx]
-                    vert(:,[2 3]) = vert(:,[3 2]) vert(:,2,:) = -vert(:,2,:)
-                    patch('Faces',face,'Vertices',vert,'FaceColor',[0.2+0.8*(1-rho(j,i,k)),0.2+0.8*(1-rho(j,i,k)),0.2+0.8*(1-rho(j,i,k))])
-                    hold on
-                end
-            end
-        end
-    end
-    axis equal axis tight axis off box on view([30,30]) pause(1e-6)
-    end
+
+                if (rho(j,i,k) > 0.5):  # User-defined display density threshold
+                    vert = np.array([   [x, y, z], 
+                                        [ x, y-hx, z], 
+                                        [ x+hx, y-hx, z], 
+                                        [ x+hx, y, z], 
+                                        [ x, y, z+hx], 
+                                        [x, y-hx, z+hx], 
+                                        [ x+hx, y-hx, z+hx], 
+                                        [x+hx, y, z+hx]])
+                    vert[:,[2, 3]] = vert[:,[3, 2]] 
+                    vert[:,2,:] = -vert[:,2,:]
+                    patch('Faces',face,'Vertices',vert,'FaceColor',[0.2+0.8*(1-rho[j,i,k]),0.2+0.8*(1-rho[j,i,k]),0.2+0.8*(1-rho[j,i,k])])
+"""
+
+
 # =========================================================================
 # === This code was written by K Liu and A Tovar, Dept. of Mechanical   ===
 # === Engineering, Indiana University-Purdue University Indianapolis,   ===
@@ -231,3 +253,17 @@ def display_3D(rho):
 # === The authors reserves all rights for the program.                  ===
 # === The code may be distributed and used for educational purposes.    ===
 # === The authors do not guarantee that the code is free from errors, a
+
+
+
+
+# The real main driver    
+if __name__ == "__main__":
+    nelx=10
+    nely=10
+    nelz = 10
+    volfrac=0.4
+    rmin=5.4
+    penal=3.0
+
+    top3d(nelx,nely,nelz,volfrac,penal,rmin)
