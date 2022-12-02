@@ -47,17 +47,19 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
     # PREPARE FINITE ELEMENT ANALYSIS
     nele = nelx*nely*nelz
     ndof = 3*(nelx+1)*(nely+1)*(nelz+1)
-    F = coo_matrix(loaddof,1,-1,ndof,1)
+    print(loaddof.shape)
+    F = coo_matrix((-1*np.ones(10),(loaddof.reshape(10),np.zeros(10))),(ndof,1))#reshape must be changes
     U = np.zeros(ndof)
     freedofs = np.setdiff1d(np.arange(ndof),fixeddof)
     KE = lk_H8(nu)
     nodegrd = np.reshape(np.arange((nely+1)*(nelx+1)),(nely+1,nelx+1)) #node grid
-    nodeids = np.reshape(nodegrd[1:-2,1:-2],(nely*nelx,1)) #node ids
+    nodeids = np.reshape(nodegrd[0:-1,0:-1],(nely*nelx,1)) #node ids 
 
 
     #nodeidz = (0:(nely+1)*(nelx+1):(nelz-1)*(nely+1)*(nelx+1))
     nodeidz = np.arange(0,(nelz-1)*(nely+1)*(nelx+1),step=(nely+1)*(nelx+1))
-    nodeids = nodeids* np.ones(len(nodeidz)) + nodeidz*np.ones(len(nodeids))
+    print(nodeidz.shape,nodeids.shape)
+    nodeids = nodeids* np.ones((len(nodeids),len(nodeidz))) + nodeidz*np.ones((len(nodeids),len(nodeidz)))
 
     edofVec = 3*nodeids[:]+1
     #do I know if this next line works? no.
@@ -151,7 +153,8 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
 def lk_H8(nu):
     A = np.array([[32, 6, -8, 6, -6, 4, 3, -6, -10, 3, -3, -3, -4, -8],
         [-48, 0, 0, -24, 24, 0, 0, 0, 12, -12, 0, 12, 12, 12]])
-    k = 1/144*A.T*np.array([[1], [nu]])
+    print(A.T.shape,np.array([[1], [nu]]).shape)
+    k = 1/144*A.T@np.array([[1], [nu]])
 
     K1 = np.array([[k[1-1], k[2-1], k[2-1], k[3-1], k[5-1], k[5-1]],
         [k[2-1], k[1-1], k[2-1], k[4-1], k[6-1], k[7-1]],
