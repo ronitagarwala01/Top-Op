@@ -55,9 +55,6 @@ def generateInitalPopulation(nelx, nely, numMembers):
 
     return population
 
-print(generateInitalPopulation(5, 5, 1))
-
-
 """
 Wrapped within an iterator:
     Evaluation
@@ -71,6 +68,29 @@ Wrapped within an iterator:
                 dtype = [('member', object), ('sum', int)]
                 return np.array(member, sum, dtype=dtype)
 """
+
+def memberAndFitnessPairing(member, fitnessValue):
+    memberFitnessTuple = (member, fitnessValue)
+
+    dtype = [('member', object), ('fitnessValue', int)]
+
+    return np.array(memberFitnessTuple, dtype=dtype)
+
+
+def fitnessFunction(member):
+    fitnessValue = np.sum(member)
+
+    return fitnessValue
+
+
+def evaluation(population):
+    memberFitnessValuePair = []
+
+    for member in population:
+        fitnessValue = fitnessFunction(member)
+        memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
+
+    return memberFitnessValuePair
 
 """
     Selection
@@ -146,3 +166,25 @@ Wrapped within an iterator:
 
     ---> Next iteration
 """
+
+# Population Generation Testing
+# testMember = memberGenerator(2, 2)
+# print("Test Member: ", testMember)
+
+# testPopulation = generateInitalPopulation(2, 2, 2)
+# print("Test Population: ", testPopulation)
+
+
+# Evaluation Testing
+# testPopulation = generateInitalPopulation(2, 2, 2)
+
+# print(testPopulation)
+
+# testFitnessValue = fitnessFunction(testPopulation[0])
+# print("\nfitnessValue test: ", testFitnessValue)
+
+# testFitnessValueMemberPair = memberAndFitnessPairing(testPopulation[0], testFitnessValue)
+# print("\nMember and fitnessValue pair test: ", testFitnessValueMemberPair)
+
+# fullEvaluationTestReturn = evaluation(testPopulation)
+# print("\nFrom evaluation function: ", fullEvaluationTestReturn)
