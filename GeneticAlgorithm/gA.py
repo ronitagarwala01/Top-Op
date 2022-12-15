@@ -1,7 +1,7 @@
 import numpy as np
 
 """
-List of functions that need to be written (18 functions):
+List of functions that need to be written (~18 functions):
 	-Main driver function (control flow function)
 
 	-Initial population:
@@ -17,6 +17,7 @@ List of functions that need to be written (18 functions):
 			-Cull selector
 		Pairing:
 			-Pairing function
+            -Generate pair indicies
 		-Crossover:
 			-AlternativeRowSwap
 			-AlternativeColSwap
@@ -68,20 +69,15 @@ Wrapped within an iterator:
                 dtype = [('member', object), ('sum', int)]
                 return np.array(member, sum, dtype=dtype)
 """
-
 def memberAndFitnessPairing(member, fitnessValue):
     memberFitnessTuple = (member, fitnessValue)
 
-    dtype = [('member', object), ('fitnessValue', int)]
-
-    return np.array(memberFitnessTuple, dtype=dtype)
-
+    return memberFitnessTuple
 
 def fitnessFunction(member):
     fitnessValue = np.sum(member)
 
     return fitnessValue
-
 
 def evaluation(population):
     memberFitnessValuePair = []
@@ -91,6 +87,7 @@ def evaluation(population):
         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
 
     return memberFitnessValuePair
+
 
 """
     Selection
@@ -110,6 +107,40 @@ def evaluation(population):
                     Given cull ratio, remove bottom % of population
                     return resulting middle population
 """
+def calculateNumberToCull(memberFitnessValuePairs, cullRatio):
+    numberToBeCulled = len(memberFitnessValuePairs) * cullRatio
+    numberToBeCulled = int(numberToBeCulled)
+
+    if numberToBeCulled % 2 != 0:
+        numberToBeCulled += 1
+
+    return numberToBeCulled
+
+def cullSelection(memberFitnessValuePairs, cullRatio=0.2):
+    numberToBeCulled = calculateNumberToCull(memberFitnessValuePairs, cullRatio)
+
+    culledPopulation = memberFitnessValuePairs[:-numberToBeCulled]
+
+    return culledPopulation
+
+
+def fitnessValueKeyForSort(n):
+    return n[1]
+
+def sortMemberFitnessValuePairs(memberFitnessValuePairs):
+    sortedScores = sorted(memberFitnessValuePairs, 
+                            key=fitnessValueKeyForSort,
+                            reverse=True)
+
+    return sortedScores
+
+def selection(memberFitnessValuePairs):
+    sortedPairs = sortMemberFitnessValuePairs(memberFitnessValuePairs)
+
+    culledPopulation = cullSelection(sortedPairs)
+
+    return culledPopulation
+
 
 """
     Pairing
@@ -122,6 +153,34 @@ def evaluation(population):
 
         return pairs
 """
+def pairIndices(listOfIndices, lengthOfIndexArray):
+
+    if lengthOfIndexArray % 2 != 0:
+        randomAdditionalIndex = np.random.randint(0, lengthOfIndexArray)
+        listOfIndices = np.append(listOfIndices, randomAdditionalIndex)
+        lengthOfIndexArray += 1
+
+    numberOfSubdivisions = lengthOfIndexArray / 2
+
+    pairs = np.split(listOfIndices, numberOfSubdivisions)
+
+    return pairs
+
+def generateRandomIndices(numberOfPopulationMembers):
+    indices = np.arange(numberOfPopulationMembers)
+
+    np.random.shuffle(indices)
+
+    return indices
+
+def pairing(culledSortedPopulation):
+    numberOfPopulationMembers = len(culledSortedPopulation)
+    randomIndices = generateRandomIndices(numberOfPopulationMembers)
+
+    pairedIndices = pairIndices(randomIndices, numberOfPopulationMembers)
+
+    return pairedIndices
+
 
 """
     Crossover
@@ -167,12 +226,18 @@ def evaluation(population):
     ---> Next iteration
 """
 
+
+"""
+What follows is Code for testing, this will be moved eventually, or removed
+"""
 # Population Generation Testing
 # testMember = memberGenerator(2, 2)
 # print("Test Member: ", testMember)
 
 # testPopulation = generateInitalPopulation(2, 2, 2)
 # print("Test Population: ", testPopulation)
+
+
 
 
 # Evaluation Testing
@@ -188,3 +253,73 @@ def evaluation(population):
 
 # fullEvaluationTestReturn = evaluation(testPopulation)
 # print("\nFrom evaluation function: ", fullEvaluationTestReturn)
+
+
+# Selection Testing
+def generateToEvaluation(nelx, nely, numPop):
+    testPopulation = generateInitalPopulation(nelx, nely, numPop)
+
+    testEvaluated = evaluation(testPopulation)
+
+    return testEvaluated
+
+# unsortedTestPairs = generateToEvaluation(2, 2, 8)
+# print("Unsorted pairs: ")
+# print(unsortedTestPairs)
+
+# sortedTestPairs = sortMemberFitnessValuePairs(unsortedTestPairs)
+
+# print("\nSorted pairs: ")
+# print(sortedTestPairs)
+
+# print("Length of pairs: ", len(sortedTestPairs))
+
+# xs = [1, 2, 3, 4, 5, 6]
+# ys = xs[:-2]
+
+# print(ys)
+
+# testNumberToCull = calculateNumberToCull(sortedTestPairs, 0.2)
+# print("Expected: 2; Actual: ", testNumberToCull)
+
+# print("Before Cull: ", sortedTestPairs)
+
+# culledPop = cullSelection(sortedTestPairs)
+
+# print("After Cull: ", culledPop)
+
+
+
+def generateToSelection(nelx, nely, numPop):
+    testPopulation = generateToEvaluation(nelx, nely, numPop)
+
+    selectedPopulation = selection(testPopulation)
+
+    return selectedPopulation
+
+
+# Testing numpy's shuffle. This will be used to determine the pairs
+# xs = np.arange(6)
+# np.random.shuffle(xs)
+
+# ys = np.split(xs, 3)
+# print(ys)
+# print(ys[0])
+# print(ys[0][0])
+
+
+# testShuffledIndices = generateRandomIndices(9)
+# print(testShuffledIndices)
+
+# testPairs = pairIndices(testShuffledIndices, 9)
+# print(testPairs)
+
+
+
+testPopulation = generateToSelection(2, 2, 8)
+print(testPopulation)
+print(len(testPopulation))
+
+testPairingPipeline = pairing(testPopulation)
+print(testPairingPipeline)
+
