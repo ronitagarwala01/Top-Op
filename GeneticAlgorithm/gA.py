@@ -41,7 +41,6 @@ Generation of new population
                     Randomly populate each index of array with either 0 or 1
                 Return array
 """
-
 def memberGenerator(nelx, nely):
     member = np.random.randint(0, 2, size=(nelx, nely))
 
@@ -137,6 +136,12 @@ def sortMemberFitnessValuePairs(memberFitnessValuePairs):
 def selection(memberFitnessValuePairs):
     sortedPairs = sortMemberFitnessValuePairs(memberFitnessValuePairs)
 
+    # This is included as a catch, so that *if* the population
+    # ever does drop this low, the rest of the algorithm still functions
+    # Mostly for testing purposes, as the population should never drop this low anyways
+    if len(sortedPairs) <= 4:
+        return sortedPairs
+
     culledPopulation = cullSelection(sortedPairs)
 
     return culledPopulation
@@ -204,12 +209,90 @@ def pairing(culledSortedPopulation):
 
         Pass to crossover driver:
             List of member pairs
-            Type code to indicate which crossover method to use
 
             Call specific crossover method function based on type code
 
+            for pair in list:
+                pass to swap function
+
         return new generation
 """
+def alternateRowColSwap(memberPair):
+    member1, member2 = alternateRowSwap(memberPair)
+
+    newMemberPair = (member1, member2)
+
+    member1, member2 = alternateColSwap(newMemberPair)
+
+    return member1, member2
+
+def alternateColSwap(memberPair):
+    member1 = np.copy(memberPair[0])
+    member2 = np.copy(memberPair[1])
+
+    for i in range(member1.shape[1]):
+        if i % 2 == 0:
+            tempHold = np.copy(member1[:, i])
+            member1[:, i] = member2[:, i]
+            member2[:, i] = tempHold
+
+    return member1, member2
+
+def alternateRowSwap(memberPair):
+    member1 = np.copy(memberPair[0])
+    member2 = np.copy(memberPair[1])
+
+    for i in range(member1.shape[0]):
+        if i % 2 == 0:
+            tempHold = np.copy(member1[i, :])
+            member1[i, :] = member2[i, :]
+            member2[i, :] = tempHold
+
+    return member1, member2
+
+def crossoverOperationWrapper(solutionPair):
+    crossoverSolutions = []
+
+    newSolution1, newSolution2 = alternateRowSwap(solutionPair)
+    newSolution3, newSolution4 = alternateColSwap(solutionPair)
+    newSolution5, newSolution6 = alternateRowColSwap(solutionPair)
+
+    crossoverSolutions.append(newSolution1)
+    crossoverSolutions.append(newSolution2)
+    crossoverSolutions.append(newSolution3)
+    crossoverSolutions.append(newSolution4)
+    crossoverSolutions.append(newSolution5)
+    crossoverSolutions.append(newSolution6)
+
+    return crossoverSolutions
+
+def crossover(sortedPopulation, pairIndices):
+    # Sorted population
+    # For each index pair
+    # pairIndices is a list of arrays, each containing two elements
+    #   pull members
+    #   package (maintain originals)
+    #   pass to crossover operations
+    #   append new solutions (all 3 possible swaps!) to nextGeneration
+
+    newGeneration = []
+
+    for pair in pairIndices:
+        firstIndex = pair[0]
+        secondIndex = pair[1]
+
+        solution1 = np.copy(sortedPopulation[firstIndex][0])
+        solution2 = np.copy(sortedPopulation[secondIndex][0])
+        
+        solutionPair = (solution1, solution2)
+
+        newSolutions = crossoverOperationWrapper(solutionPair)
+        
+        for solution in newSolutions:
+            newGeneration.append(solution)
+
+    return newGeneration
+
 
 """
     Mutation
@@ -225,6 +308,31 @@ def pairing(culledSortedPopulation):
 
     ---> Next iteration
 """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 """
@@ -290,6 +398,7 @@ def generateToEvaluation(nelx, nely, numPop):
 
 
 
+# Pairing Testing
 def generateToSelection(nelx, nely, numPop):
     testPopulation = generateToEvaluation(nelx, nely, numPop)
 
@@ -314,12 +423,94 @@ def generateToSelection(nelx, nely, numPop):
 # testPairs = pairIndices(testShuffledIndices, 9)
 # print(testPairs)
 
+# testPopulation = generateToSelection(2, 2, 8)
+# print(testPopulation)
+# print(len(testPopulation))
+
+# testPairingPipeline = pairing(testPopulation)
+# print(testPairingPipeline[0])
+
+# print(type(testPairingPipeline[0]))
 
 
-testPopulation = generateToSelection(2, 2, 8)
-print(testPopulation)
-print(len(testPopulation))
 
-testPairingPipeline = pairing(testPopulation)
-print(testPairingPipeline)
 
+
+# Crossover testing
+def generateToPairing(nelx, nely, numPop):
+    culledPopulation = generateToSelection(nelx, nely, numPop)
+
+    pairedPopulation = pairing(culledPopulation)
+
+    return culledPopulation, pairedPopulation
+
+# ones = np.random.randint(0, 2, (3, 6))
+
+# print(ones)
+# print(ones.shape)
+# print(ones.shape[1])
+
+# print(ones[:, 0])
+
+def rowSwapTest():    
+    array1 = np.arange(1, 10)
+    array1 = array1.reshape(3, 3)
+
+    array2 = np.arange(10, 19)
+    array2 = array2.reshape(3, 3)
+
+    print(array1)
+    print(array2)
+    print("")
+
+    testPair = (array1, array2)
+
+    testArray1, testArray2 = alternateRowSwap(testPair)
+
+    print(testArray1)
+    print(testArray2)
+
+def colSwapTest():    
+    array1 = np.arange(1, 10)
+    array1 = array1.reshape(3, 3)
+
+    array2 = np.arange(10, 19)
+    array2 = array2.reshape(3, 3)
+
+    print(array1)
+    print(array2)
+    print("")
+
+    testPair = (array1, array2)
+
+    testArray1, testArray2 = alternateColSwap(testPair)
+
+    print(testArray1)
+    print(testArray2)
+
+def rowColSwapTest():    
+    array1 = np.arange(1, 10)
+    array1 = array1.reshape(3, 3)
+
+    array2 = np.arange(10, 19)
+    array2 = array2.reshape(3, 3)
+
+    print(array1)
+    print(array2)
+    print("")
+
+    testPair = (array1, array2)
+
+    testArray1, testArray2 = alternateRowColSwap(testPair)
+
+    print(testArray1)
+    print(testArray2)
+
+# testSelected, testPairs = generateToPairing(3, 3, 2)
+
+# print(testSelected)
+# print(testPairs)
+
+# testNextGeneration = crossover(testSelected, testPairs)
+
+# print(testNextGeneration)
