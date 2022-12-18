@@ -115,7 +115,7 @@ def calculateNumberToCull(memberFitnessValuePairs, cullRatio):
 
     return numberToBeCulled
 
-def cullSelection(memberFitnessValuePairs, cullRatio=0.2):
+def cullSelection(memberFitnessValuePairs, cullRatio=0.4):
     numberToBeCulled = calculateNumberToCull(memberFitnessValuePairs, cullRatio)
 
     culledPopulation = memberFitnessValuePairs[:-numberToBeCulled]
@@ -128,8 +128,7 @@ def fitnessValueKeyForSort(n):
 
 def sortMemberFitnessValuePairs(memberFitnessValuePairs):
     sortedScores = sorted(memberFitnessValuePairs, 
-                            key=fitnessValueKeyForSort,
-                            reverse=True)
+                            key=fitnessValueKeyForSort)
 
     return sortedScores
 
@@ -309,29 +308,93 @@ def crossover(sortedPopulation, pairIndices):
     ---> Next iteration
 """
 
+def shouldMutate():
+    probability = [0.7, 0.3]
+    boolInt = [0, 1]
+
+    return np.random.choice(boolInt, p=probability)
 
 
+def mutateMember(solution):
+    unraveledSolution = np.ravel(solution)
+    mutatedSolution = []
+
+    for element in unraveledSolution:
+        if shouldMutate():
+            element = int(np.absolute(element - 1))
+            mutatedSolution.append(element)
+        else:
+            mutatedSolution.append(element)
+
+    mutatedSolution = np.reshape(mutatedSolution, newshape=solution.shape)
+
+    return mutatedSolution
+
+def mutation(newGeneration):
+    mutatedPopulation = []
+
+    for member in newGeneration:
+        mutatedMember = mutateMember(member)
+        mutatedPopulation.append(mutatedMember)
+
+    return  mutatedPopulation
 
 
+"""
+    Population Control
+        Pass crossed members to population control function
+        if exceeds population limit (1000 for now):
+            evaluate
+            sort
+            take first 1000 members from crossed and sorted list
+        
+        return population for mutation
+"""
+def populationControl(crossedMembers, maxPopLimit):
+    if len(crossedMembers) <= maxPopLimit:
+        return crossedMembers
+
+    evaluatedCrossedMembers = evaluation(crossedMembers)
+    sortedEvalCrossedMembers = sortMemberFitnessValuePairs(evaluatedCrossedMembers)
+    print("Top fitness value: ", sortedEvalCrossedMembers[0][1])
+
+    culledPopulation = sortedEvalCrossedMembers[:maxPopLimit]
+
+    newGeneration = [solution for solution, fitness in culledPopulation]
+
+    return newGeneration
 
 
+def mainWrapper(nelx, nely, numPop, numIterations):
+    newPopulation = generateInitalPopulation(nelx, nely, numPop)
 
+    for x in range(numIterations):
+        print("Iteration:", x)
 
+        memberFitnessValuePairs = evaluation(newPopulation)
 
+        culledPopulation = selection(memberFitnessValuePairs)
 
+        minimaFitness = culledPopulation[0][1]
 
+        if minimaFitness == 0:
+            print('"Converged"')
+            print(culledPopulation[0])
+            return newPopulation
 
+        pairIndices = pairing(culledPopulation)
 
+        crossedPopulation = crossover(culledPopulation, pairIndices)
 
+        controlledPopulation = populationControl(crossedPopulation, 500)
 
+        mutatedPopulation = mutation(controlledPopulation)
+        
+        newPopulation = mutatedPopulation
 
+        print(len(newPopulation))
 
-
-
-
-
-
-
+    return newPopulation
 
 
 
@@ -361,6 +424,7 @@ What follows is Code for testing, this will be moved eventually, or removed
 
 # fullEvaluationTestReturn = evaluation(testPopulation)
 # print("\nFrom evaluation function: ", fullEvaluationTestReturn)
+
 
 
 # Selection Testing
@@ -395,6 +459,7 @@ def generateToEvaluation(nelx, nely, numPop):
 # culledPop = cullSelection(sortedTestPairs)
 
 # print("After Cull: ", culledPop)
+
 
 
 
@@ -514,3 +579,51 @@ def rowColSwapTest():
 # testNextGeneration = crossover(testSelected, testPairs)
 
 # print(testNextGeneration)
+
+
+
+def generateToCrossover(nelx, nely, numPop):
+    testSelect, testPairs = generateToPairing(nelx, nely, numPop)
+
+    newGeneration = crossover(testSelect, testPairs)
+
+    return newGeneration
+
+
+
+# print(shouldMutate())
+
+# totals = [0, 0]
+
+# for i in range(100):
+#     totals[shouldMutate()] += 1
+
+# print(totals)
+
+# testArray = np.array([0, 0])
+# print(testArray)
+
+# testArray[0] = 1
+# print(testArray)
+
+# testArray = np.ones((3, 3), dtype=np.int32)
+# print(testArray)
+
+# testArray = mutateMember(testArray)
+# print(testArray)
+
+# testNewGen = generateToCrossover(3, 3, 2)
+# print(testNewGen)
+
+# testMember = generateInitalPopulation(4, 4, 1)
+# print(testMember)
+
+# testMutated = mutation(testMember)
+# print(testMutated)
+
+
+
+# Main Wrapper Testing
+singleIteration = mainWrapper(8, 8, 2, 100)
+
+# print(singleIteration)
