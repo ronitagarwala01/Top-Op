@@ -106,22 +106,28 @@ def evaluation(population):
                     Given cull ratio, remove bottom % of population
                     return resulting middle population
 """
-def calculateNumberToCull(memberFitnessValuePairs, cullRatio):
-    numberToBeCulled = len(memberFitnessValuePairs) * cullRatio
-    numberToBeCulled = int(numberToBeCulled)
+def calculateNumberToSelect(memberFitnessValuePairs, populationRatio):
+    numberToBeSelected = len(memberFitnessValuePairs) * populationRatio
+    numberToBeSelected = int(numberToBeSelected)
 
-    if numberToBeCulled % 2 != 0:
-        numberToBeCulled += 1
+    if numberToBeSelected % 2 != 0:
+        numberToBeSelected += 1
 
-    return numberToBeCulled
+    return numberToBeSelected
 
 def cullSelection(memberFitnessValuePairs, cullRatio=0.4):
-    numberToBeCulled = calculateNumberToCull(memberFitnessValuePairs, cullRatio)
+    numberToBeCulled = calculateNumberToSelect(memberFitnessValuePairs, cullRatio)
 
     culledPopulation = memberFitnessValuePairs[:-numberToBeCulled]
 
     return culledPopulation
 
+def eliteSelection(sortedPairs, eliteRatio=0.01):
+    numberOfElite = calculateNumberToSelect(sortedPairs, eliteRatio)
+    
+    elitePopulation = sortedPairs[:numberOfElite]
+
+    return elitePopulation
 
 def fitnessValueKeyForSort(n):
     return n[1]
@@ -132,9 +138,7 @@ def sortMemberFitnessValuePairs(memberFitnessValuePairs):
 
     return sortedScores
 
-def selection(memberFitnessValuePairs):
-    sortedPairs = sortMemberFitnessValuePairs(memberFitnessValuePairs)
-
+def selection(sortedPairs):
     # This is included as a catch, so that *if* the population
     # ever does drop this low, the rest of the algorithm still functions
     # Mostly for testing purposes, as the population should never drop this low anyways
@@ -292,6 +296,26 @@ def crossover(sortedPopulation, pairIndices):
 
     return newGeneration
 
+"""
+    Elite Re-Integration
+"""
+def extractEliteSolutions(elitePopulation):
+    eliteSolutions = []
+
+    for elite in elitePopulation:
+        solution = np.copy(elite[0])
+        eliteSolutions.append(solution)
+
+
+    return eliteSolutions
+
+def integrateElite(newPopulation, elitePopulation):
+    extractedEliteSolutions = extractEliteSolutions(elitePopulation)
+
+    for solutions in extractedEliteSolutions:
+        newPopulation.append(solutions)
+
+    return newPopulation
 
 """
     Mutation
@@ -309,9 +333,8 @@ def crossover(sortedPopulation, pairIndices):
 """
 
 def shouldMutate():
-    probability = [0.7, 0.3]
+    probability = [0.6, 0.4]
     boolInt = [0, 1]
-
     return np.random.choice(boolInt, p=probability)
 
 
@@ -364,6 +387,16 @@ def populationControl(crossedMembers, maxPopLimit):
 
     return newGeneration
 
+"""
+    Main Wrapper Function
+"""
+
+def convergenceTest(population, goal):
+    firstMember = population[0]
+
+    if np.sum(firstMember) == 0:
+        return True
+    return False
 
 def mainWrapper(nelx, nely, numPop, numIterations):
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
@@ -373,20 +406,24 @@ def mainWrapper(nelx, nely, numPop, numIterations):
 
         memberFitnessValuePairs = evaluation(newPopulation)
 
-        culledPopulation = selection(memberFitnessValuePairs)
+        sortedPopulation = sortMemberFitnessValuePairs(memberFitnessValuePairs)
 
-        minimaFitness = culledPopulation[0][1]
-
-        if minimaFitness == 0:
-            print('"Converged"')
-            print(culledPopulation[0])
-            return newPopulation
+        culledPopulation = selection(sortedPopulation)
+        elitePopulation = eliteSelection(sortedPopulation)
 
         pairIndices = pairing(culledPopulation)
 
         crossedPopulation = crossover(culledPopulation, pairIndices)
 
-        controlledPopulation = populationControl(crossedPopulation, 500)
+        integratedPopulation = integrateElite(crossedPopulation, elitePopulation)
+
+        controlledPopulation = populationControl(integratedPopulation, 700)
+
+        if convergenceTest(controlledPopulation, 0):
+            print('"Converged"')
+            print(controlledPopulation[0])
+            return controlledPopulation
+
 
         mutatedPopulation = mutation(controlledPopulation)
         
@@ -398,9 +435,17 @@ def mainWrapper(nelx, nely, numPop, numIterations):
 
 
 
+
+
 """
 What follows is Code for testing, this will be moved eventually, or removed
 """
+# Main Wrapper Testing
+singleIteration = mainWrapper(6, 6, 10, 100)
+# print(singleIteration)
+
+
+
 # Population Generation Testing
 # testMember = memberGenerator(2, 2)
 # print("Test Member: ", testMember)
@@ -443,6 +488,13 @@ def generateToEvaluation(nelx, nely, numPop):
 
 # print("\nSorted pairs: ")
 # print(sortedTestPairs)
+
+# testElitePopulation = eliteSelection(sortedTestPairs, 0.2)
+# print(testElitePopulation)
+
+# testExtractedElite = extractEliteSolutions(testElitePopulation)
+# print(testExtractedElite)
+
 
 # print("Length of pairs: ", len(sortedTestPairs))
 
@@ -622,8 +674,3 @@ def generateToCrossover(nelx, nely, numPop):
 # print(testMutated)
 
 
-
-# Main Wrapper Testing
-singleIteration = mainWrapper(8, 8, 2, 100)
-
-# print(singleIteration)
