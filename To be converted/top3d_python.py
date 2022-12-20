@@ -63,7 +63,27 @@ def top3d(nelx,nely,nelz,volfrac,penal,rmin):
 
     edofVec = 3*nodeids[:]+1
     #do I know if this next line works? no.
-    edofMat = repmat(edofVec,1,24) + repmat([0, 1, 2, 3*nely + [3, 4, 5, 0, 1, 2], -3, -2, -1,  3*(nely+1)*(nelx+1)+[0, 1, 2, 3*nely + [3, 4, 5, 0, 1, 2,], -3, -2, -1]],nele,1)
+    #print(edofVec)
+    edofMat = repmat(edofVec,1,24) 
+    print("\nelement degressof freedom Matrix:")
+    print(edofMat.shape)
+
+    #this line should be a matrix but right now it is a weird object vector
+    # edofMat_temp_holder_pre1 = 3*nely + np.array([3, 4, 5, 0, 1, 2])
+    # edofMat_temp_holder_array2 = np.concatenate([-3, -2, -1],  3*(nely+1)*(nelx+1)+np.concatenate([0, 1, 2], np.concatenate(3*nely + np.array([3, 4, 5, 0, 1, 2]), [-3, -2, -1])))
+    # print(edofMat_temp_holder_pre1)
+    # edofMat_temp_holder = np.concatenate(np.concatenate([0, 1, 2], edofMat_temp_holder_pre1), edofMat_temp_holder_array2)
+    # print(edofMat_temp_holder)
+    # print(edofMat_temp_holder.shape)
+    # edofMat = edofMat +  repmat(edofMat_temp_holder,nele,1)
+    print("\nedofMat:")
+    temp_holder1 = (3*nely) + np.array([3,4,5,0,1,2])
+    temp_holder3 = (3*nely) + np.array([3,4,5,0,1,2])
+    print(temp_holder3)
+    temp_holder2 = ((3*(nely + 1))*(nelx + 1)) + np.concatenate([np.array([0,1,2]), temp_holder3, np.array([-3,-2,-1])])
+    edofMat_temp_holder = np.concatenate([np.array([0,1,2]),temp_holder1,[-3,-2,-1],temp_holder2])
+    print(edofMat_temp_holder)
+    edofMat=repmat(edofVec,1,24) + repmat(edofMat_temp_holder,nele,1)
 
     iK = np.reshape(np.kron(edofMat,np.ones((24,1))).T, (24*24*nele,1))
     jK = np.reshape(np.kron(edofMat,np.ones((1,24))).T, (24*24*nele,1))
