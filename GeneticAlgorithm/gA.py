@@ -253,6 +253,17 @@ def alternateRowSwap(memberPair):
 
     return member1, member2
 
+def swapRandomRowBlocks(Individuals):
+    Individual1, Individual2 = Individuals
+    Child1 = Individual1.empty_like(Individual1)
+    Row = np.random.randint(0,Individual1.shape[0])
+    Child1[0:Row, :] = Individual1[0:Row, :]
+    Child1[Row:, :] = Individual2[Row:, :]
+    Child2 = Individual1.empty_like(Individual1)
+    Child2[0:Row, :] = Individual2[0:Row, :]
+    Child2[Row:, :] = Individual1[Row:, :]
+    return Child1, Child2
+
 def crossoverOperationWrapper(solutionPair):
     crossoverSolutions = []
 
