@@ -1,37 +1,8 @@
 import numpy as np
 
 """
-List of functions that need to be written (~18 functions):
-	-Main driver function (control flow function)
-
-	-Initial population:
-		-Member generator
-
-	To be contained within a loop:
-		-Evaluation function:
-			-Fitness function
-			-Dtype packager
-		-Selection:
-			-Sorting function
-			-Elite selector
-			-Cull selector
-		Pairing:
-			-Pairing function
-            -Generate pair indicies
-		-Crossover:
-			-AlternativeRowSwap
-			-AlternativeColSwap
-			-AltRowAndColSwap
-		-Mutation:
-			-Mutator function
-			-Probability function(?)
-"""
-
-"""
 Framework:
 Generation of new population
-    DO NOT MAKE IT MORE COMPLICATED THAN NEEDED
-
     To wrapper function:
         Given dimensions and number of members to generate
         Call member generator:
@@ -63,10 +34,7 @@ Wrapped within an iterator:
                 Fitness function (element minimization):
                     Sum the value of each array
                     Return sum
-        Pass sum and member to dtype packager:
-            Dtype packager:
-                dtype = [('member', object), ('sum', int)]
-                return np.array(member, sum, dtype=dtype)
+            Pair each member with fitness value
 """
 def memberAndFitnessPairing(member, fitnessValue):
     memberFitnessTuple = (member, fitnessValue)
@@ -106,29 +74,6 @@ def evaluation(population):
                     Given cull ratio, remove bottom % of population
                     return resulting middle population
 """
-def calculateNumberToSelect(memberFitnessValuePairs, populationRatio):
-    numberToBeSelected = len(memberFitnessValuePairs) * populationRatio
-    numberToBeSelected = int(numberToBeSelected)
-
-    if numberToBeSelected % 2 != 0:
-        numberToBeSelected += 1
-
-    return numberToBeSelected
-
-def cullSelection(memberFitnessValuePairs, cullRatio=0.4):
-    numberToBeCulled = calculateNumberToSelect(memberFitnessValuePairs, cullRatio)
-
-    culledPopulation = memberFitnessValuePairs[:-numberToBeCulled]
-
-    return culledPopulation
-
-def eliteSelection(sortedPairs, eliteRatio=0.01):
-    numberOfElite = calculateNumberToSelect(sortedPairs, eliteRatio)
-    
-    elitePopulation = sortedPairs[:numberOfElite]
-
-    return elitePopulation
-
 def fitnessValueKeyForSort(n):
     return n[1]
 
@@ -138,87 +83,60 @@ def sortMemberFitnessValuePairs(memberFitnessValuePairs):
 
     return sortedScores
 
-def selection(sortedPairs):
-    # This is included as a catch, so that *if* the population
-    # ever does drop this low, the rest of the algorithm still functions
-    # Mostly for testing purposes, as the population should never drop this low anyways
+def probablilityToSelect(member):
+    memberSolution = member[0]
+
+    memberDimensions = memberSolution.shape
+
+    obj = member[1]
+    objMax = memberDimensions[0] * memberDimensions[1]
+
+    p = 1 - (obj / objMax)
+
+    return p
+
+def shouldSelect(member):
+    p = probablilityToSelect(member)
+
+    probabilities = [1 - p, p]
+    bools = [0, 1]
+
+    return np.random.choice(bools, p = probabilities)
+
+
+def selection(sortedPairs, numToSelect, numElite):
+
     if len(sortedPairs) <= 4:
         return sortedPairs
 
-    culledPopulation = cullSelection(sortedPairs)
+    if numElite >= len(sortedPairs):
+        return sortedPairs
 
-    return culledPopulation
+    numSelected = numElite
+    numToSelect -= numElite
 
+    selectedPopulation = sortedPairs[:numElite]
 
-"""
-    Pairing
-        Random pairing of members for crossover
-            Pass to pairing function:
-                For each member:
-                    Pair with a different, randomly picked, member
-                    Package both members
-                    return list of pairs
+    toSelect = sortedPairs[numElite:]
 
-        return pairs
-"""
-def pairIndices(listOfIndices, lengthOfIndexArray):
+    np.random.shuffle(toSelect)
 
-    if lengthOfIndexArray % 2 != 0:
-        randomAdditionalIndex = np.random.randint(0, lengthOfIndexArray)
-        listOfIndices = np.append(listOfIndices, randomAdditionalIndex)
-        lengthOfIndexArray += 1
+    while(numToSelect > 0):
+        if len(toSelect) < numToSelect:
+            break
 
-    numberOfSubdivisions = lengthOfIndexArray / 2
+        np.random.shuffle(toSelect)
 
-    pairs = np.split(listOfIndices, numberOfSubdivisions)
+        for i in range(0, numToSelect):
+            if shouldSelect(toSelect[i]):
+                selected = toSelect.pop(i)
+                selectedPopulation.append(selected)
+                numToSelect -= 1
 
-    return pairs
-
-def generateRandomIndices(numberOfPopulationMembers):
-    indices = np.arange(numberOfPopulationMembers)
-
-    np.random.shuffle(indices)
-
-    return indices
-
-def pairing(culledSortedPopulation):
-    numberOfPopulationMembers = len(culledSortedPopulation)
-    randomIndices = generateRandomIndices(numberOfPopulationMembers)
-
-    pairedIndices = pairIndices(randomIndices, numberOfPopulationMembers)
-
-    return pairedIndices
-
-
+    return selectedPopulation
+    
 """
     Crossover
-        Swapping of genetic information
-        3 methods of crossover will be used to start:
-            Alternate swapping of rows:
-                for each row: 
-                    if row index % 2 == 0:
-                        swap rows
-
-            Alternate swapping of cols:
-                for each row:
-                    if col index % 2 == 0:
-                        swap rows
-
-            Combination of both:
-                for each solution:
-                    altRowSwap
-                    altColSwap
-
-
-        Pass to crossover driver:
-            List of member pairs
-
-            Call specific crossover method function based on type code
-
-            for pair in list:
-                pass to swap function
-
-        return new generation
 """
 def alternateRowColSwap(memberPair):
     member1, member2 = alternateRowSwap(memberPair)
@@ -254,22 +172,58 @@ def alternateRowSwap(memberPair):
     return member1, member2
 
 def swapRandomRowBlocks(Individuals):
+
     Individual1, Individual2 = Individuals
-    Child1 = Individual1.empty_like(Individual1)
+    Child1 = np.empty_like(Individual1)
+
     Row = np.random.randint(0,Individual1.shape[0])
+
     Child1[0:Row, :] = Individual1[0:Row, :]
     Child1[Row:, :] = Individual2[Row:, :]
-    Child2 = Individual1.empty_like(Individual1)
+
+    Child2 = np.empty_like(Individual1)
+
     Child2[0:Row, :] = Individual2[0:Row, :]
     Child2[Row:, :] = Individual1[Row:, :]
+
     return Child1, Child2
 
-def crossoverOperationWrapper(solutionPair):
+def swapRandomColBlocks(Individuals):
+
+    Individual1, Individual2 = Individuals
+    Child1 = np.empty_like(Individual1)
+
+    Col = np.random.randint(0,Individual1.shape[1])
+
+    Child1[:, 0:Col] = Individual1[:, 0:Col]
+    Child1[:, Col:] = Individual2[:, Col:]
+
+    Child2 = np.empty_like(Individual1)
+
+    Child2[:, 0:Col] = Individual2[:, 0:Col]
+    Child2[:, Col:] = Individual1[:, Col:]
+
+    return Child1, Child2
+
+def swapRandomRowColBlocks(Individuals):
+
+    rowCross = swapRandomRowBlocks(Individuals)
+    rowColCross = swapRandomColBlocks(rowCross)
+
+    return rowColCross
+
+
+def crossoverOperationWrapper(solutionPair, alternate=1):
     crossoverSolutions = []
 
-    newSolution1, newSolution2 = alternateRowSwap(solutionPair)
-    newSolution3, newSolution4 = alternateColSwap(solutionPair)
-    newSolution5, newSolution6 = alternateRowColSwap(solutionPair)
+    if alternate == 0:
+        newSolution1, newSolution2 = alternateRowSwap(solutionPair)
+        newSolution3, newSolution4 = alternateColSwap(solutionPair)
+        newSolution5, newSolution6 = alternateRowColSwap(solutionPair)
+    else:
+        newSolution1, newSolution2 = swapRandomRowBlocks(solutionPair)
+        newSolution3, newSolution4 = swapRandomColBlocks(solutionPair)
+        newSolution5, newSolution6 = swapRandomRowColBlocks(solutionPair)
 
     crossoverSolutions.append(newSolution1)
     crossoverSolutions.append(newSolution2)
@@ -280,53 +234,24 @@ def crossoverOperationWrapper(solutionPair):
 
     return crossoverSolutions
 
-def crossover(sortedPopulation, pairIndices):
-    # Sorted population
-    # For each index pair
-    # pairIndices is a list of arrays, each containing two elements
-    #   pull members
-    #   package (maintain originals)
-    #   pass to crossover operations
-    #   append new solutions (all 3 possible swaps!) to nextGeneration
+def crossover(shuffledPopulation, alternate=0):
+    # Takes a shuffled population, we are just crossing each member along the array
 
-    newGeneration = []
+    newMembers = []
+    numMembers = len(shuffledPopulation)
 
-    for pair in pairIndices:
-        firstIndex = pair[0]
-        secondIndex = pair[1]
+    for i in range(numMembers):
+        if i + 1 >= numMembers:
+            memberPair = (shuffledPopulation[i], shuffledPopulation[0])
+        else:
+            memberPair = (shuffledPopulation[i], shuffledPopulation[i + 1])
 
-        solution1 = np.copy(sortedPopulation[firstIndex][0])
-        solution2 = np.copy(sortedPopulation[secondIndex][0])
-        
-        solutionPair = (solution1, solution2)
-
-        newSolutions = crossoverOperationWrapper(solutionPair)
+        newSolutions = crossoverOperationWrapper(memberPair, alternate)
         
         for solution in newSolutions:
-            newGeneration.append(solution)
+            newMembers.append(solution)
 
-    return newGeneration
-
-"""
-    Elite Re-Integration
-"""
-def extractEliteSolutions(elitePopulation):
-    eliteSolutions = []
-
-    for elite in elitePopulation:
-        solution = np.copy(elite[0])
-        eliteSolutions.append(solution)
-
-
-    return eliteSolutions
-
-def integrateElite(newPopulation, elitePopulation):
-    extractedEliteSolutions = extractEliteSolutions(elitePopulation)
-
-    for solutions in extractedEliteSolutions:
-        newPopulation.append(solutions)
-
-    return newPopulation
+    return newMembers
 
 """
     Mutation
@@ -339,12 +264,9 @@ def integrateElite(newPopulation, elitePopulation):
                         Flip bit based on mutation probability
 
         return new generation
-
-    ---> Next iteration
 """
-
 def shouldMutate():
-    probability = [0.6, 0.4]
+    probability = [0.7, 0.3]
     boolInt = [0, 1]
     return np.random.choice(boolInt, p=probability)
 
@@ -373,315 +295,104 @@ def mutation(newGeneration):
 
     return  mutatedPopulation
 
-
-"""
-    Population Control
-        Pass crossed members to population control function
-        if exceeds population limit (1000 for now):
-            evaluate
-            sort
-            take first 1000 members from crossed and sorted list
-        
-        return population for mutation
-"""
-def populationControl(crossedMembers, maxPopLimit):
-    if len(crossedMembers) <= maxPopLimit:
-        return crossedMembers
-
-    evaluatedCrossedMembers = evaluation(crossedMembers)
-    sortedEvalCrossedMembers = sortMemberFitnessValuePairs(evaluatedCrossedMembers)
-    print("Top fitness value: ", sortedEvalCrossedMembers[0][1])
-
-    culledPopulation = sortedEvalCrossedMembers[:maxPopLimit]
-
-    newGeneration = [solution for solution, fitness in culledPopulation]
-
-    return newGeneration
-
 """
     Main Wrapper Function
 """
 
+def fitnessAverage(evaluatedMembers, listOfAverages = []):
+    fitnessValues = []
+    for solution, fitness in evaluatedMembers:
+        fitnessValues.append(fitness)
+
+    return np.average(fitnessValues)
+
+
 def convergenceTest(population, goal):
     firstMember = population[0]
 
-    if np.sum(firstMember) == 0:
+    print(("Top Performing Fitness Value: ", firstMember[1]))
+
+    if np.sum(firstMember[1]) == goal:
         return True
     return False
 
+def extractSolutions(solutionPairs):
+    solutions = []
+
+    for solution, fitness in solutionPairs:
+        solutions.append(solution)
+
+    return solutions
+
+"""
+    To-Change:
+        Do not discard previous population
+        Integrate child+mutated members within previous population
+        Then pick top performing members
+"""
 def mainWrapper(nelx, nely, numPop, numIterations):
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
 
     for x in range(numIterations):
         print("Iteration:", x)
 
-        memberFitnessValuePairs = evaluation(newPopulation)
+        # Duplication
+        toCross = np.copy(newPopulation)
+        toMutate = np.copy(newPopulation)
 
+        # This will be passed raw to the crossover algorithm
+        np.random.shuffle(toCross)
+
+        # Crossover & Mutation
+        newCrossedMembers = crossover(toCross)
+        newMutatedMembers = mutation(toMutate)
+
+        for crossed in newCrossedMembers:
+            newPopulation.append(crossed)
+
+        for mutated in newMutatedMembers:
+            newPopulation.append(mutated)
+
+        # Evaluation
+        memberFitnessValuePairs = evaluation(newPopulation)
+        print("Avg fitness: ", fitnessAverage(memberFitnessValuePairs, []))
+
+        # Selection
         sortedPopulation = sortMemberFitnessValuePairs(memberFitnessValuePairs)
 
-        culledPopulation = selection(sortedPopulation)
-        elitePopulation = eliteSelection(sortedPopulation)
+        # Selection takes pop, numToSelect, and numElite
+        # numToSelect is basically the population cap
+        selectedPopulation = selection(sortedPopulation, 200, 40)
 
-        pairIndices = pairing(culledPopulation)
-
-        crossedPopulation = crossover(culledPopulation, pairIndices)
-
-        integratedPopulation = integrateElite(crossedPopulation, elitePopulation)
-
-        controlledPopulation = populationControl(integratedPopulation, 700)
-
-        if convergenceTest(controlledPopulation, 0):
+        if convergenceTest(selectedPopulation, 0):
             print('"Converged"')
-            print(controlledPopulation[0])
-            return controlledPopulation
+            print(selectedPopulation[0])
+            return selectedPopulation
 
-
-        mutatedPopulation = mutation(controlledPopulation)
-        
-        newPopulation = mutatedPopulation
-
-        print(len(newPopulation))
+        newPopulation = extractSolutions(selectedPopulation)
 
     return newPopulation
 
 
-
-
-
 """
-What follows is Code for testing, this will be moved eventually, or removed
+What follows is Code for testing, this will be moved eventually or removed
 """
 # Main Wrapper Testing
-singleIteration = mainWrapper(6, 6, 10, 100)
+singleIteration = mainWrapper(10, 10, 1000, 1000)
 # print(singleIteration)
 
 
+# testArray = np.zeros(shape=(3, 3))
+# testArrayPair = (testArray, 0)
 
-# Population Generation Testing
-# testMember = memberGenerator(2, 2)
-# print("Test Member: ", testMember)
+# arrayShape = testArrayPair[0].shape
+# maxObj = arrayShape[0] * arrayShape[1]
+# print(maxObj)
 
-# testPopulation = generateInitalPopulation(2, 2, 2)
-# print("Test Population: ", testPopulation)
+# print(arrayShape[0])
 
+# print(testArrayPair)
+# print(testArrayPair[0].shape)
+# print(testArrayPair[1])
 
-
-
-# Evaluation Testing
-# testPopulation = generateInitalPopulation(2, 2, 2)
-
-# print(testPopulation)
-
-# testFitnessValue = fitnessFunction(testPopulation[0])
-# print("\nfitnessValue test: ", testFitnessValue)
-
-# testFitnessValueMemberPair = memberAndFitnessPairing(testPopulation[0], testFitnessValue)
-# print("\nMember and fitnessValue pair test: ", testFitnessValueMemberPair)
-
-# fullEvaluationTestReturn = evaluation(testPopulation)
-# print("\nFrom evaluation function: ", fullEvaluationTestReturn)
-
-
-
-# Selection Testing
-def generateToEvaluation(nelx, nely, numPop):
-    testPopulation = generateInitalPopulation(nelx, nely, numPop)
-
-    testEvaluated = evaluation(testPopulation)
-
-    return testEvaluated
-
-# unsortedTestPairs = generateToEvaluation(2, 2, 8)
-# print("Unsorted pairs: ")
-# print(unsortedTestPairs)
-
-# sortedTestPairs = sortMemberFitnessValuePairs(unsortedTestPairs)
-
-# print("\nSorted pairs: ")
-# print(sortedTestPairs)
-
-# testElitePopulation = eliteSelection(sortedTestPairs, 0.2)
-# print(testElitePopulation)
-
-# testExtractedElite = extractEliteSolutions(testElitePopulation)
-# print(testExtractedElite)
-
-
-# print("Length of pairs: ", len(sortedTestPairs))
-
-# xs = [1, 2, 3, 4, 5, 6]
-# ys = xs[:-2]
-
-# print(ys)
-
-# testNumberToCull = calculateNumberToCull(sortedTestPairs, 0.2)
-# print("Expected: 2; Actual: ", testNumberToCull)
-
-# print("Before Cull: ", sortedTestPairs)
-
-# culledPop = cullSelection(sortedTestPairs)
-
-# print("After Cull: ", culledPop)
-
-
-
-
-# Pairing Testing
-def generateToSelection(nelx, nely, numPop):
-    testPopulation = generateToEvaluation(nelx, nely, numPop)
-
-    selectedPopulation = selection(testPopulation)
-
-    return selectedPopulation
-
-
-# Testing numpy's shuffle. This will be used to determine the pairs
-# xs = np.arange(6)
-# np.random.shuffle(xs)
-
-# ys = np.split(xs, 3)
-# print(ys)
-# print(ys[0])
-# print(ys[0][0])
-
-
-# testShuffledIndices = generateRandomIndices(9)
-# print(testShuffledIndices)
-
-# testPairs = pairIndices(testShuffledIndices, 9)
-# print(testPairs)
-
-# testPopulation = generateToSelection(2, 2, 8)
-# print(testPopulation)
-# print(len(testPopulation))
-
-# testPairingPipeline = pairing(testPopulation)
-# print(testPairingPipeline[0])
-
-# print(type(testPairingPipeline[0]))
-
-
-
-
-
-# Crossover testing
-def generateToPairing(nelx, nely, numPop):
-    culledPopulation = generateToSelection(nelx, nely, numPop)
-
-    pairedPopulation = pairing(culledPopulation)
-
-    return culledPopulation, pairedPopulation
-
-# ones = np.random.randint(0, 2, (3, 6))
-
-# print(ones)
-# print(ones.shape)
-# print(ones.shape[1])
-
-# print(ones[:, 0])
-
-def rowSwapTest():    
-    array1 = np.arange(1, 10)
-    array1 = array1.reshape(3, 3)
-
-    array2 = np.arange(10, 19)
-    array2 = array2.reshape(3, 3)
-
-    print(array1)
-    print(array2)
-    print("")
-
-    testPair = (array1, array2)
-
-    testArray1, testArray2 = alternateRowSwap(testPair)
-
-    print(testArray1)
-    print(testArray2)
-
-def colSwapTest():    
-    array1 = np.arange(1, 10)
-    array1 = array1.reshape(3, 3)
-
-    array2 = np.arange(10, 19)
-    array2 = array2.reshape(3, 3)
-
-    print(array1)
-    print(array2)
-    print("")
-
-    testPair = (array1, array2)
-
-    testArray1, testArray2 = alternateColSwap(testPair)
-
-    print(testArray1)
-    print(testArray2)
-
-def rowColSwapTest():    
-    array1 = np.arange(1, 10)
-    array1 = array1.reshape(3, 3)
-
-    array2 = np.arange(10, 19)
-    array2 = array2.reshape(3, 3)
-
-    print(array1)
-    print(array2)
-    print("")
-
-    testPair = (array1, array2)
-
-    testArray1, testArray2 = alternateRowColSwap(testPair)
-
-    print(testArray1)
-    print(testArray2)
-
-# testSelected, testPairs = generateToPairing(3, 3, 2)
-
-# print(testSelected)
-# print(testPairs)
-
-# testNextGeneration = crossover(testSelected, testPairs)
-
-# print(testNextGeneration)
-
-
-
-def generateToCrossover(nelx, nely, numPop):
-    testSelect, testPairs = generateToPairing(nelx, nely, numPop)
-
-    newGeneration = crossover(testSelect, testPairs)
-
-    return newGeneration
-
-
-
-# print(shouldMutate())
-
-# totals = [0, 0]
-
-# for i in range(100):
-#     totals[shouldMutate()] += 1
-
-# print(totals)
-
-# testArray = np.array([0, 0])
-# print(testArray)
-
-# testArray[0] = 1
-# print(testArray)
-
-# testArray = np.ones((3, 3), dtype=np.int32)
-# print(testArray)
-
-# testArray = mutateMember(testArray)
-# print(testArray)
-
-# testNewGen = generateToCrossover(3, 3, 2)
-# print(testNewGen)
-
-# testMember = generateInitalPopulation(4, 4, 1)
-# print(testMember)
-
-# testMutated = mutation(testMember)
-# print(testMutated)
-
-
+# probablilityToSelect(testArray)
