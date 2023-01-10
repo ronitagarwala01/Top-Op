@@ -44,25 +44,24 @@ class TopOpt3D:
         self.nele = nelx*nely*nelz
         self.ndof = 3*(nelx+1)*(nely+1)*(nelz+1)
 
-        # USER-DEFINED LOAD DOFs
-        il,jl,kl = np.meshgrid(nelx, 0, np.arange(nelz))       # Coordinates
-        loadnid = kl*(nelx+1)*(nely+1)+il*(nely+1)+(nely+1-jl) # Node IDs
-        loaddof = 3*loadnid[:] - 1                             # DOFs
+        
+        
 
         # USER-DEFINED SUPPORT FIXED DOFs
         iif,jf,kf = np.meshgrid(0,np.arange(nely),np.arange(nelz))  # Coordinates
         fixednid = kf*(nelx+1)*(nely+1)+iif*(nely+1)+(nely+1-jf)    # Node IDs
         self.fixeddof = np.array([[3*fixednid[:]], [3*fixednid[:]-1], [3*fixednid[:]-2]])  # DOFs
 
-        
-        #print(loaddof.shape)
-        #F = sparse(loaddof,1,-1,ndof,1);
-
+    
+        # # USER-DEFINED LOAD DOFs
         #apply Force along the top x values
+        il,jl,kl = np.meshgrid(nelx, 0, np.arange(nelz))       # Coordinates
+        loadnid = kl*(nelx+1)*(nely+1)+il*(nely+1)+(nely+1-jl) # Node IDs
+        loaddof = 3*loadnid[:] - 1                             # DOFs
+        
         value = -np.ones(nelx)
         vi = np.reshape(loaddof,nelx)
-        vj = np.zeros(nelx)
-        self.F = coo_matrix((value,(vi,vj)),shape=(self.ndof,1)).tocsc()#reshape must be changed
+        self.F = self.ApplyForcesAsSparce(value,vi)
         
         U = np.zeros(self.ndof)
         self.freedofs = np.setdiff1d(np.arange(self.ndof),self.fixeddof)
@@ -141,38 +140,22 @@ class TopOpt3D:
             self.loop += 1
 
             # FE-ANALYSIS
-            YoungsModulusForElementsWithPenalty = np.reshape(self.Emin+(np.power(self.xPhys.T,self.penal)) * (self.E0-self.Emin),(self.nele,1))
-            KE_flattened = np.reshape(self.KE,(24*24,1))
-            toReshape = KE_flattened @ YoungsModulusForElementsWithPenalty.T
-            sK = np.reshape(toReshape,(24*24*self.nele))
-
-            K = coo_matrix((sK,(self.iK,self.jK)),shape=(self.ndof,self.ndof)).tocsc() 
-            K = (K+K.T)/2
+            K = self.buildCurrentStiffnessMatrix(self.xPhys)
 
             #Solve for displacement vector
             U = spsolve(K,self.F)
 
             # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
-            U_times_KE = (U[self.edofMat]@self.KE)
-            U_KE_U = U_times_KE*U[self.edofMat]
-            ce = np.reshape(np.sum(U_KE_U,axis=1),[self.nely,self.nelx,self.nelz])
-            c_toSum = (self.Emin+(self.xPhys**self.penal)*(self.E0-self.Emin))*ce
-
-            c = np.sum(np.sum(np.sum(c_toSum)))
-            dc = -self.penal*(self.E0-self.Emin)*(self.xPhys**(self.penal-1))*ce
+            c,dc = self.sensitivityAnalysis(U)
             dv = np.ones((self.nely,self.nelx,self.nelz))
 
             # FILTERING AND MODIFICATION OF SENSITIVITIES
-            filter1 = np.reshape(dc,(self.nele,1))/self.Hs
-            dc_temp = np.array(self.H@filter1)
-            dc = np.reshape(dc_temp,[self.nelx,self.nely,self.nelz])
-
-            filter2 = np.reshape(dv,(self.nele,1))/self.Hs
-            dv_temp = np.array(self.H@filter2)
-            dv = np.reshape(dv_temp,[self.nelx,self.nely,self.nelz])
+            dc = self.filterAcrossElements(dc)
+            dv = self.filterAcrossElements(dv)
 
             # OPTIMALITY CRITERIA UPDATE
             xnew,xPhys = self.OptimalityCriterion(dc,dv,self.x)
+
             self.change = np.linalg.norm(np.reshape(xnew,(self.nele,1))-np.reshape(self.x,(self.nele,1)), ord = np.inf)
             self.x = xnew
             self.xPhys = xPhys
@@ -184,7 +167,55 @@ class TopOpt3D:
             self.saveToCSV("output3Dshape.csv")
             return False
 
+    def buildCurrentStiffnessMatrix(self,x):
+        """
+        Build a the element stiffeness matrix based off the given element values
+
+        takes the x as a 3D matrix of nelx,nely,nelz
+        returns a matrix K which is Symetric of size ndof,ndof where ndof is 3*(nelx+1)*(nely+1)*(nelz+1)
+        """
+        YoungsModulusForElementsWithPenalty = np.reshape(self.Emin+(np.power(x.T,self.penal)) * (self.E0-self.Emin),(self.nele,1))
+        KE_flattened = np.reshape(self.KE,(24*24,1))
+        toReshape = KE_flattened @ YoungsModulusForElementsWithPenalty.T
+        sK = np.reshape(toReshape,(24*24*self.nele))
+
+        K = coo_matrix((sK,(self.iK,self.jK)),shape=(self.ndof,self.ndof)).tocsc() 
+        K = (K+K.T)/2
+        return K
+
+    def sensitivityAnalysis(self,U):
+        U_times_KE = (U[self.edofMat]@self.KE)
+        U_KE_U = U_times_KE*U[self.edofMat]
+        ce = np.reshape(np.sum(U_KE_U,axis=1),[self.nely,self.nelx,self.nelz])
+        c_toSum = (self.Emin+(self.xPhys**self.penal)*(self.E0-self.Emin))*ce
+
+        c = np.sum(np.sum(np.sum(c_toSum)))
+        dc = -self.penal*(self.E0-self.Emin)*(self.xPhys**(self.penal-1))*ce
+        return c,dc
+
+    def filterAcrossElements(self,x):
+        """
+        Performs a weighted average of the given x for all the values within the radius rMin of the element
+
+        Effectivly creates a blur filter over the given x
+        Used to reduce checker boarding by somothing out differences in compliance
+
+        It works by making the elements a 1D array(column vector), then when you matrix multiply them you can multiply each element by some coresponding row vector of weights
+        This dot product between each element and a weight value is then summed and put as the value of the element
+        We then need to divide by theweight values to get the propper average but this is actually done first.
+        """
+        filter1 = np.reshape(x,(self.nele,1))/self.Hs # reshape x and divide It by Hs(H sum) This creates a pre weighted averageing sum
+        filter2 = np.array(self.H@filter1) # Matrix multiply the filter scheme over our elements(H is nele by nele)
+        return np.reshape(filter2,[self.nelx,self.nely,self.nelz]) # return the reshaped and filtered 
+
     def OptimalityCriterion(self,dc,dv,x):
+        """
+        A bisection algroithm that performs the important step of minimizing compliance
+
+        returns:
+            - xnew a 3D matrix of all elements
+            - xPhys a filtered matrix of xnew
+        """
         #print("Optimality Criterion")
         l1 = 0
         l2 = 1e9
@@ -192,9 +223,29 @@ class TopOpt3D:
         while ((l2-l1)/(l1+l2) > 1e-3):
             lmid = 0.5*(l2+l1)
             B_e = -(dc/dv)/lmid
+            """
+            The following line of code is confusing be it ultimately boils down to the following peicewise function:
+
+            x_min = max(0,x_e-move) # the new min value of x_e must be either 0 or it's alllocated move distance in the negative direction
+            x_max = min(1,x_e+move) # the new max value of x_e must be either 1 or it's alllocated move distance in the positve direction
+
+            if(x_e * sqrt(B_e) <= x_min):
+                x_new = x_min
+
+            elif(x_e * sqrt(B_e) >= x_max):
+                x_new = x_max
+
+            else:
+                x_new = x_e * sqrt(B_e)
+
+            This locks off the values of xnew to only values between 0 and 1
+            """
             xnew = np.maximum(0,np.maximum(x-move,np.minimum(1,np.minimum(x+move,x*np.sqrt(B_e)))))
-            xPhys_flat = np.array((self.H@np.reshape(xnew,(self.nele,1)))/self.Hs)
-            
+
+            xPhys_flat = np.array((self.H@np.reshape(xnew,(self.nele,1)))/self.Hs)# filter values of xnew
+
+
+            # actual bisection algorihm 
             if (np.sum(xPhys_flat) > volfrac*self.nele):
                 l1 = lmid 
             else: 
@@ -688,10 +739,40 @@ class TopOpt3D:
     def saveToCSV(self,filePath):
         np.savetxt(filePath, np.reshape(self.xPhys,(self.nele,1)), delimiter=",")
     
-    def getCurrentDensityGrid(self):
-        """Returns the current xPhys"""
+    def getFilteredDensityGrid(self):
+        """
+        Returns the current xPhys which is a density grid of the part.
+        Values close to 1 represent full density or full material.
+        Values close to 0 represent no density or air.
+
+        This has been filtered to avoid the checkerboarding problem
+        """
         return self.xPhys
 
+    def getRawDensityGrid(self):
+        """
+        Returns the current x which is a density grid of the part.
+        Values close to 1 represent full density or full material.
+        Values close to 0 represent no density or air.
+
+        This has NOT been filtered
+        """
+        return self.x
+
+    def ApplyForcesAsSparce(self,values,i_coord):
+        """
+        Creates the force vector for the part
+        Builds the vector as a 1D sparce matrix of size ndof = 3*(nelx+1)*(nely+1)*(nelz+1)
+
+        Takes an array containing the values of the forces as well as and array of the index of the values
+        len(values) must equal len(i_coord)
+
+            - values is the array of force magnitudes applied to the part
+            - i_coord is the array of the indexes for each coresponding index in values
+
+        """
+        F = coo_matrix((values,(i_coord,np.zeros(len(i_coord)))),shape=(self.ndof,1)).tocsc()#reshape must be changed
+        return F
 # =========================================================================
 # === This code was written by K Liu and A Tovar, Dept. of Mechanical   ===
 # === Engineering, Indiana University-Purdue University Indianapolis,   ===
@@ -732,6 +813,7 @@ if __name__ == "__main__":
     ax = fig.add_subplot(projection='3d')
     tri = ax.plot_trisurf([0,0.1,0.1], [0,0.1,0], [0,0,0.1], cmap='viridis', linewidths=0.2)
     loop = 0
+    output = False # control on outputting a csv file
 
     still_itterating = True
     while(still_itterating):
@@ -742,11 +824,12 @@ if __name__ == "__main__":
         tri = ax.plot_trisurf(x_plot, y_plot, z_plot, cmap='viridis', linewidths=0.2)
         fig.canvas.draw()
 
-        loop += 1
-        if(loop %2 == 0):
-            if(loop%4==0):
-                t.saveToCSV(r".\3D Variant\output3D2.csv")
-            else:
-                t.saveToCSV(r".\3D Variant\output3D1.csv")
+        if(output):
+            loop += 1
+            if(loop %2 == 0):
+                if(loop%4==0):
+                    t.saveToCSV(r".\3D Variant\output3D2.csv")
+                else:
+                    t.saveToCSV(r".\3D Variant\output3D1.csv")
 
     print("Done.")
