@@ -63,7 +63,7 @@ class TopOpt3D:
         vi = np.reshape(loaddof,nelx)
         self.F = self.ApplyForcesAsSparce(value,vi)
         
-        U = np.zeros(self.ndof)
+        #U = np.zeros(self.ndof)
         self.freedofs = np.setdiff1d(np.arange(self.ndof),self.fixeddof)
         self.KE = self.lk_H8()
         nodegrd = np.reshape(np.arange((nely+1)*(nelx+1)),(nely+1,nelx+1)) #node grid
@@ -141,9 +141,12 @@ class TopOpt3D:
 
             # FE-ANALYSIS
             K = self.buildCurrentStiffnessMatrix(self.xPhys)
+            # Remove constrained dofs from matrix
+            K = K[self.freedofs,:][:,self.freedofs]
 
             #Solve for displacement vector
-            U = spsolve(K,self.F)
+            U = np.zeros(self.ndof)
+            U[self.freedofs] = spsolve(K,self.F[self.freedofs])
 
             # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
             c,dc = self.sensitivityAnalysis(U)
@@ -647,21 +650,21 @@ class TopOpt3D:
                     cubeIndex = 0
                     #print("[{},{},{}]:\n\t{}".format(x,y,z,gridval))
 
-                    if (gridval[0] < cutoff):
+                    if (gridval[0] > cutoff):
                         cubeIndex |= 1
-                    if (gridval[1] < cutoff):
+                    if (gridval[1] > cutoff):
                         cubeIndex |= 2
-                    if (gridval[2] < cutoff):
+                    if (gridval[2] > cutoff):
                         cubeIndex |= 4
-                    if (gridval[3] < cutoff):
+                    if (gridval[3] > cutoff):
                         cubeIndex |= 8
-                    if (gridval[4] < cutoff):
+                    if (gridval[4] > cutoff):
                         cubeIndex |= 16
-                    if (gridval[5] < cutoff):
+                    if (gridval[5] > cutoff):
                         cubeIndex |= 32
-                    if (gridval[6] < cutoff):
+                    if (gridval[6] > cutoff):
                         cubeIndex |= 64
-                    if (gridval[7] < cutoff):
+                    if (gridval[7] > cutoff):
                         cubeIndex |= 128
                     #print(cubeIndex)
                     #get the coords of the points in the cube
@@ -816,13 +819,18 @@ if __name__ == "__main__":
     output = False # control on outputting a csv file
 
     still_itterating = True
-    while(still_itterating):
-        still_itterating = t.itterationStep()
-        fig.canvas.flush_events()
-        tri.remove()
+    while(plt.fignum_exists(fig.number)):
+        if(still_itterating):
+            still_itterating = t.itterationStep()
+        
         x_plot,y_plot,z_plot = t.getPlotPoints()
-        tri = ax.plot_trisurf(x_plot, y_plot, z_plot, cmap='viridis', linewidths=0.2)
-        fig.canvas.draw()
+        if(len(x_plot) >= 3):
+            tri.remove()
+            tri = ax.plot_trisurf(x_plot, y_plot, z_plot, cmap='viridis', linewidths=0.2)
+            #Despite my attempts, if you exit the plot while it is still working you will get an error
+            if(plt.fignum_exists(fig.number)):
+                fig.canvas.flush_events()
+                fig.canvas.draw()
 
         if(output):
             loop += 1
@@ -831,5 +839,6 @@ if __name__ == "__main__":
                     t.saveToCSV(r".\3D Variant\output3D2.csv")
                 else:
                     t.saveToCSV(r".\3D Variant\output3D1.csv")
-
+    
+    #t.saveToCSV(r".\3D Variant\output3D.csv")
     print("Done.")
