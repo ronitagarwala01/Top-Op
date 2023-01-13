@@ -175,3 +175,59 @@ def generateForces3D(x:int,y:int,z:int,ForcesArray):
     
 
     return fv,fi
+
+def mapProblemStatement2D(x:int,y:int,circle1Data,circle2Data,circle3Data,radiusScallingAxes:str="x"):
+    """
+    creates a list of properties needed to format the original problem statement into one that can be used by the topopt program
+
+    Parameters:
+        - The x dimension of the grid to return
+        - The y dimension of the grid to return
+        - A list contininf the data for the three circles that will be used
+            - Each should be a list containing [x_coord,y_coord,radius,forceMagnitude,ForceAngle]
+            - All values of the circles x,y coordinates as well as the radius should be in values in the interval [0,1] 
+            - The force magnitude will not be scalled
+            - Force Angle is the angle the force is pointing in radians
+        - The axis by which the radius is scaled by in the event that the x and y sizes are different.radiusScallingAxes = "x" | "y".  Default "x"
+        - If correctErrors is True then artifacts such as circles overlapping with each other and circles crossing outside the boundary will be fixed.
+            - Fixing the artifacts may lead to unexpected outcomes.
+
+    Returns:
+        - filled area that will have solid material allways
+        - support area that will be fixed in place(not move)
+        - force vector 
+    """
+
+    c1_circleData = [circle1Data[0],circle1Data[1],circle1Data[2]]
+    c2_circleData = [circle2Data[0],circle2Data[1],circle2Data[2]]
+    c3_circleData = [circle3Data[0],circle3Data[1],circle3Data[2]]
+
+    c1_forceData = [circle1Data[0],circle1Data[1],circle1Data[3],circle1Data[4]]
+    c2_forceData = [circle2Data[0],circle2Data[1],circle2Data[3],circle2Data[4]]
+    c3_forceData = [circle3Data[0],circle3Data[1],circle3Data[3],circle3Data[4]]
+
+    filledArea = generateCircles(x,y,[c1_circleData,c2_circleData,c3_circleData],radiusScallingAxes,False)
+
+    supportArea = generateCircles(x,y,[c1_circleData],radiusScallingAxes,False)
+
+    def polarAddition(magnitude1,theta1,magnitude2,theta2):
+        x1 = magnitude1*np.cos(theta1)
+        y1 = magnitude1*np.sin(theta1)
+
+        x2 = magnitude2*np.cos(theta2)
+        y2 = magnitude2*np.sin(theta2)
+
+        magnitude3 = np.sqrt((x1+x2)**2 + (y1+y2)**2)
+        theta3 = np.arctan2(y1+y2,x1+x2)
+
+        return magnitude3,theta3
+    
+    force2_newMagnitude,force2_newAngle = polarAddition(-c1_forceData[2]/2,c1_forceData[3],c2_forceData[2],c2_forceData[3])
+    force3_newMagnitude,force3_newAngle = polarAddition(-c1_forceData[2]/2,c1_forceData[3],c3_forceData[2],c3_forceData[3])
+
+    newForce2 = [c2_forceData[0],c2_forceData[1],force2_newMagnitude,force2_newAngle]
+    newForce3 = [c3_forceData[0],c3_forceData[1],force3_newMagnitude,force3_newAngle]
+
+    forceVector = generateForces2D(x,y,[newForce2,newForce3])
+
+    return filledArea,supportArea,forceVector
