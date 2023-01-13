@@ -99,7 +99,8 @@ def generateForces2D(x:int,y:int,ForcesArray):
         - A 1D arrays of size 2*(x+1)*(y+1) representing the degree of freedom where the force is applied
     """
     ndof = 2*(x+1)*(y+1)
-    forceVector = np.zeros((ndof,1))
+    forceVector = np.zeros((ndof,2*len(ForcesArray)))
+    i = 0
 
     for x1,y1,mag,angle in ForcesArray:
         x1 = int(x1*x)
@@ -107,10 +108,11 @@ def generateForces2D(x:int,y:int,ForcesArray):
         fx = mag*np.cos(angle)
         fy = mag*np.sin(angle)
 
-        index = 2*((y+1)*x1 + y)
+        index = 2*((y+1)*x1 + y1)
 
-        forceVector[index] = fx
-        forceVector[index+1] = fy
+        forceVector[index,i] = fx
+        forceVector[index+1,i+1] = fy
+        i += 2
     
 
     return forceVector

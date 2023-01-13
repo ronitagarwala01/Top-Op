@@ -163,7 +163,6 @@ class topOpter:
         else:
             return False
     
-    
     def getPart(self):
         return self.xPhys.reshape((self.nelx,self.nely))
     
@@ -267,11 +266,10 @@ class topOpter:
                 if np.sqrt((j-loads[2][0])**2+(i-loads[0][1])**2) < loads[0][2]:
                     self.passive[IX(i,j)] = 1
         
-        
-
     def updateFixed(self,fixedArray):
         """
         the fixedArray is a nelx by nely 2D array with either 0,1,2,3 denoting free, fixed horizontal, fixed vertical, or fixed both
+        
         the self.fixed array is 1D of size 2*(nelx+1) * (nely+1)
 
         required:
