@@ -59,8 +59,8 @@ class TopOpt3D:
         loadnid = kl*(nelx+1)*(nely+1)+il*(nely+1)+(nely+1-jl) # Node IDs
         loaddof = 3*loadnid[:] - 1                             # DOFs
         
-        value = -np.ones(nelx)
-        vi = np.reshape(loaddof,nelx)
+        value = -np.ones(nelz)
+        vi = np.reshape(loaddof,nelz)
         self.F = self.ApplyForcesAsSparce(value,vi)
         
         #U = np.zeros(self.ndof)
@@ -150,7 +150,7 @@ class TopOpt3D:
 
             # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
             c,dc = self.sensitivityAnalysis(U)
-            dv = np.ones((self.nely,self.nelx,self.nelz))
+            dv = np.ones((self.nelx,self.nely,self.nelz))
 
             # FILTERING AND MODIFICATION OF SENSITIVITIES
             dc = self.filterAcrossElements(dc)
@@ -209,7 +209,7 @@ class TopOpt3D:
         """
         filter1 = np.reshape(x,(self.nele,1))/self.Hs # reshape x and divide It by Hs(H sum) This creates a pre weighted averageing sum
         filter2 = np.array(self.H@filter1) # Matrix multiply the filter scheme over our elements(H is nele by nele)
-        return np.reshape(filter2,[self.nelx,self.nely,self.nelz]) # return the reshaped and filtered 
+        return np.reshape(filter2,[self.nely,self.nelx,self.nelz]) # return the reshaped and filtered 
 
     def OptimalityCriterion(self,dc,dv,x):
         """
@@ -226,6 +226,10 @@ class TopOpt3D:
         while ((l2-l1)/(l1+l2) > 1e-3):
             lmid = 0.5*(l2+l1)
             B_e = -(dc/dv)/lmid
+            #print(dc.shape)
+            #print(dv.shape)
+            #print(B_e.shape)
+            #print(x.shape)
             """
             The following line of code is confusing be it ultimately boils down to the following peicewise function:
 
@@ -241,7 +245,7 @@ class TopOpt3D:
             else:
                 x_new = x_e * sqrt(B_e)
 
-            This locks off the values of xnew to only values between 0 and 1
+            This locks off the values of xnew to within the range of +/-move and only values between 0 and 1
             """
             xnew = np.maximum(0,np.maximum(x-move,np.minimum(1,np.minimum(x+move,x*np.sqrt(B_e)))))
 
@@ -255,7 +259,7 @@ class TopOpt3D:
                 l2 = lmid
 
 
-        xPhys = np.reshape(xPhys_flat,(nelx,nely,nelz))
+        xPhys = np.reshape(xPhys_flat,(nely,nelx,nelz))
         return xnew,xPhys
 
     def lk_H8(self):
@@ -331,7 +335,7 @@ class TopOpt3D:
         """
 
         squareSize = max(self.nelx,self.nely,self.nelz) + 1
-        equationMap = np.pad(self.xPhys,[(1,squareSize-self.nelx),(1,squareSize-self.nely),(1,squareSize-self.nelz)],mode='constant',constant_values=0)
+        equationMap = np.pad(self.xPhys,[(1,squareSize-self.nely),(1,squareSize-self.nelx),(1,squareSize-self.nelz)],mode='constant',constant_values=0)
 
         """
         from: http://paulbourke.net/geometry/polygonise/
@@ -802,8 +806,8 @@ class TopOpt3D:
 
 # The real main driver    
 if __name__ == "__main__":
-    nelx=10
-    nely=10
+    nelx = 10
+    nely = 10
     nelz = 10
     volfrac=0.4
     rmin=5.4
