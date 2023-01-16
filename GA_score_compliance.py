@@ -4,7 +4,7 @@ from scipy.sparse.linalg import spsolve
 
 
 class topOpter:
-    def __init__(self,nelx,nely,volfrac,penal,rmin,ft):
+    def __init__(self,nelx,nely,volfrac,penal,rmin,ft,complianceConstraint):
         self.nelx =nelx
         self.nely = nely
         self.volfrac = volfrac
@@ -12,7 +12,7 @@ class topOpter:
         self.rmin = rmin
         self.ft = ft
         self.massPenaltyFactor = 0
-        self.complianceMax = 5
+        self.complianceMax = complianceConstraint
         self.minChange = 0.01
         self.maxElementChange = .1
         
@@ -111,6 +111,13 @@ class topOpter:
         self.ce = np.ones(nely*nelx)
 
     def sensitivityAnalysis(self,x):
+        #reshape x into a 1D array to perform calculations
+        x = np.reshape(x,(self.nelx*self.nely))
+        x = np.maximum(0,np.minimum(x,1))
+        #Apply the force fill and force free areas
+        x = np.where(self.passive == 1,0,x)
+        x = np.where(self.passive == 2,1,x)
+
         # Setup and solve FE problem
         sK=((self.KE.flatten()[np.newaxis]).T*(self.Emin+(x)**self.penal*(self.Emax-self.Emin))).flatten(order='F')
         K_unconstrained = coo_matrix((sK,(self.iK,self.jK)),shape=(self.ndof,self.ndof)).tocsc()
@@ -119,7 +126,7 @@ class topOpter:
         K = K_unconstrained[self.free,:][:,self.free]
 
         # Solve system 
-        u=np.zeros((self.ndof,self.numberOfForces+1))
+        u=np.zeros((self.ndof,self.numberOfForces))
         f=self.f[self.free,:]
         sps = spsolve(K,f)
         u[self.free,:] = sps
@@ -141,6 +148,9 @@ class topOpter:
         
         return compliance,dc,K_unconstrained,K,sps,u[self.free]
 
+    def getCompliance(self,x):
+        return self.sensitivityAnalysis(x)[0]
+    
     def lk(self):
         #element stiffness matrix
         E=1
@@ -247,6 +257,7 @@ class topOpter:
         self.loop = 0
 
     def updateForceVectors(self,vectorArray):
+
         def getCorners(x,y):
             elementNum = (self.nely+1)*x + y
             cornerTL = [2*elementNum,2*elementNum+1]
@@ -282,3 +293,21 @@ class topOpter:
 
         self.change = 1 
         self.loop = 0
+
+    def ApplyProblem(self, filledArea,supportArea,forceVector):
+        self.passive = (2*filledArea).reshape(self.nelx*self.nely)
+        self.updateFixed(supportArea*3)
+        self.f = forceVector
+        self.numberOfForces = 4
+        self.u=np.zeros((2*(self.nelx+1)*(self.nely+1),4))
+
+    def applyConstraints(self,x):
+        #reshape x into a 1D array to perform calculations
+        x = np.reshape(x,(self.nelx*self.nely))
+        x = np.maximum(0,np.minimum(x,1))
+        #Apply the force fill and force free areas
+        x = np.where(self.passive == 1,0,x)
+        x = np.where(self.passive == 2,1,x)
+        x = np.reshape(x,(self.nelx,self.nely))
+        return x
+
