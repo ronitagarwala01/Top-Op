@@ -1,11 +1,7 @@
-
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
-from matplotlib import pyplot as plt
 
-from scipy.optimize import Bounds,LinearConstraint,NonlinearConstraint
-from scipy.optimize import minimize
 
 class topOpter:
     def __init__(self,nelx,nely,volfrac,penal,rmin,ft):
@@ -114,76 +110,13 @@ class topOpter:
         self.dc = np.ones(nely*nelx)
         self.ce = np.ones(nely*nelx)
 
-    def itterate(self):
-        #Check if the current setup has all the minimum requirements for optimization.
-        canCompute = (self.numberOfForces > 0) and (self.numberOfFixedPoints > 3 )
-
-        # do not run the optimization step if any of the following conditions are false
-        if( self.change>self.minChange and self.loop<500 and canCompute):
-            self.loop += 1
-
-            # Optimality criteria
-            self.xold[:]=self.x
-
-            #optimality function: reduce mass
-            def OptimalityFunction_mass(x):
-                #return the current mass of the object as the sum of all the elements
-                return abs(x.sum())
-            def OptimalityJacobian_mass(x):
-                # since the sum of all the elements is linear with respect to each element the derivative of the mass with respect to each element is one
-                # thus the optimality jacobian is an array of ones.
-                return np.ones(len(x))
-
-            #Constraints for the function
-            g1_compliance = self.getNonlinearConstraint_comliance()
-
-            self.x[:]= self.optimality_criterion(OptimalityFunction_mass, OptimalityJacobian_mass, [g1_compliance], self.maxElementChange)
-
-            # Filter design variables
-            self.xPhys[:]=self.x
-
-            #filter the part based on density
-            #self.xPhys[:]=np.asarray(self.H*self.x[np.newaxis].T/self.Hs)[:,0]
-            
-            # Compute the change by the inf. norm or the max element change in the part.
-            self.change=np.linalg.norm(self.x.reshape(self.nelx*self.nely,1)-self.xold.reshape(self.nelx*self.nely,1),np.inf)
-
-
-            # Compute the new mass and compliance to be printed out
-            self.objective_mass = self.xPhys.sum()
-            self.constraint_compliance = self.Compliance(self.xPhys)
-            # Write iteration history to screen (req. Python 2.6 or newer)
-            print("it.: {0} , Compliance.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(self.loop,self.constraint_compliance,self.objective_mass,self.change))
-            return True
-        else:
-            return False
-
-    def getNonlinearConstraint_comliance(self):
-        """
-        Returns a scipy NonlinearConstrain built using the compliance function
-        boundaries are 0 <= current_compliance <= compliance_max
-        """
-
-        #constraint of compliance function
-        def constraint_g1(x):
-            return self.Compliance(x)
-        #jacobian of compliance function
-        def consstraint_g1_Jacobian(x):
-            return self.Jacobian_Compliance(x)
-
-        lowerBound = 0 # the compliance of any object cannot be zero so this is a good lower bound
-        upperBound = self.complianceMax #constrains the compliance to be under the max allowable compliance
-
-        nonlinear_constraint = NonlinearConstraint(constraint_g1,lowerBound,upperBound,jac=consstraint_g1_Jacobian)
-        return nonlinear_constraint
-
     def sensitivityAnalysis(self,x):
         # Setup and solve FE problem
         sK=((self.KE.flatten()[np.newaxis]).T*(self.Emin+(x)**self.penal*(self.Emax-self.Emin))).flatten(order='F')
-        K = coo_matrix((sK,(self.iK,self.jK)),shape=(self.ndof,self.ndof)).tocsc()
+        K_unconstrained = coo_matrix((sK,(self.iK,self.jK)),shape=(self.ndof,self.ndof)).tocsc()
 
         # Remove constrained dofs from matrix
-        K = K[self.free,:][:,self.free]
+        K = K_unconstrained[self.free,:][:,self.free]
 
         # Solve system 
         u=np.zeros((self.ndof,self.numberOfForces+1))
@@ -206,52 +139,10 @@ class topOpter:
         # Sensitivity filtering:
         self.dc[:] = np.asarray((self.H*(self.x*self.dc))[np.newaxis].T/self.Hs)[:,0] / np.maximum(0.001,self.x)
         
-        return compliance,dc
+        return compliance,dc,K_unconstrained,K,sps,u[self.free]
 
-    def Compliance(self,x):
-        """
-        Takes in a numpy array representing the elements in the current part
-        returns the current compliance of the part given the predefined load vectors and free/fixed elements
-
-        Work for the function is done in the senstvity analysis but only the compliance is passed outside the function
-        """
-        return self.sensitivityAnalysis(x)[0]
-
-    def Jacobian_Compliance(self,x):
-        """
-        Takes in a numpy array representing the elements in the current part
-        returns the jacobian of the complinace function as a numpy array where each index coresponds to the gradient of the compliance function with resepect to that index of x
-        
-        Work for the function is done in the senstvity analysis but only the derivative of the compliance is passed outside the function
-        """
-        return self.sensitivityAnalysis(x)[1]
-
-    def getPart(self):
-        return self.xPhys.reshape((self.nelx,self.nely))
-    
-    def getDerivetiveOfSensitivity(self):
-        return self.dc.reshape((self.nelx,self.nely))
-
-    def clearPart(self):
-        self.x=np.ones(self.nely*self.nelx,dtype=float)
-        self.xold=self.x.copy()
-        self.xPhys=self.x.copy()
-        self.change = 1 
-        self.loop = 0
-        self.dv = np.ones(self.nely*self.nelx)
-        self.dc = np.ones(self.nely*self.nelx)
-        self.ce = np.ones(self.nely*self.nelx)
-        self.g=0
-
-    def getMassWithPenalty(self,penalty):
-        if(penalty == 0):
-            return self.xPhys.sum()
-        else:
-            mass = (self.xPhys + penalty*self.xPhys*(1 - self.xPhys)).sum()
-            return mass
-
-    #element stiffness matrix
     def lk(self):
+        #element stiffness matrix
         E=1
         nu=0.3
         k=np.array([1/2-nu/6,1/8+nu/8,-1/4-nu/12,-1/8+3*nu/8,-1/4+nu/12,-1/8-nu/8,nu/6,1/8-3*nu/8])
@@ -264,48 +155,6 @@ class topOpter:
         [k[6], k[3], k[4], k[1], k[2], k[7], k[0], k[5]],
         [k[7], k[2], k[1], k[4], k[3], k[6], k[5], k[0]] ])
         return (KE)
-
-    # Optimality criterion
-    def optimality_criterion(self,OptimalityFunction,OptimalityJacobian,constraints,move):
-        """
-        This function is the brawn of the program
-        Uses the scipy.optimize.minmize function
-
-        The function takes:
-        - the optimality function for mass (sum of all elements)
-        - the jacobian of the optimality function (array of 1's since the mass scales linearly)
-        - an array containing the linear and nonlinear constraints
-
-        - the allowable change for each element from it's previous value
-
-
-        The function returns:
-            xNew as the new updated values of x
-
-        """
-        #create a new copy of our elements so as to not acidentaly edit them while otimizing
-        xnew=self.xPhys.copy()
-        
-        #define bouds of x to be within move distance
-        x_lowerBound = np.maximum(0,xnew - move*np.ones(len(xnew)))
-        x_upperBound = np.minimum(1,xnew + move*np.ones(len(xnew)))
-        bounds  = Bounds(x_lowerBound,x_upperBound)
-
-        #create the minimization problem
-        res = minimize(OptimalityFunction, xnew, method='SLSQP', jac=OptimalityJacobian,
-               constraints=constraints,
-               bounds=bounds)
-
-        if(not res.success):
-            self.printResults(res)
-
-        xnew = res.x
-
-        #do the passives
-        xnew = np.where(self.passive == 1, 0, xnew)
-        xnew = np.where(self.passive == 2, 1, xnew)
-            
-        return xnew
 
     def updatePassives(self,passiveArray):
         """
@@ -433,27 +282,3 @@ class topOpter:
 
         self.change = 1 
         self.loop = 0
-
-    def showAnchors(self):
-        print("Anchors")
-        fixed = np.zeros(self.ndof)
-        fixed[self.free] = 1
-        self.drawPlots(fixed)
-    
-    def showForces(self):
-        print("forceVectors")
-
-        for i in range(self.numberOfForces):
-            print("force:",i)
-            self.drawPlots(self.f[:,i])
-
-    def drawPlots(self,arr):
-        print("arr1.shape = {}".format(arr.shape))
-        l = max(arr.shape)//2
-
-    def printResults(self,res):
-        if(len(res.x) < 5):
-            print("Optimal x values:",res.x)
-        print("Success:",res.success)
-        print("Status:",res.status)
-        print("Message:",res.message)

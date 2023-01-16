@@ -24,17 +24,17 @@ def updateImageDropOff(imageArray,val):
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=50
-    nely=50
+    nelx=5
+    nely=5
     volfrac=0.4
     rmin=5.4
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens
     # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
     # and the counterclockwise angle of the force in degrees.
-    circle_1 = [.2,.5,.1,1,(3/2)*np.pi]
+    circle_1 = [.2,.3,.1,1,(3/2)*np.pi]
     circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
-    circle_3 = [.8,.5,.1,1,(3/2)*np.pi]
+    circle_3 = [.8,.7,.1,1,(3/2)*np.pi]
 
     filledArea,supportArea,forceVector = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
 
@@ -82,6 +82,7 @@ if __name__ == "__main__":
     prevSliderVal = slider_for_material.val
     im2 = ax[1].imshow(t.getDerivetiveOfSensitivity().T, cmap='plasma_r', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
     done = False
+    agentNumber = 0
     while(plt.fignum_exists(fig.number)):
         im1.set_array(updateImageDropOff(-t.getPart().T,slider_for_material.val))
         im2.set_array(t.getDerivetiveOfSensitivity().T)
