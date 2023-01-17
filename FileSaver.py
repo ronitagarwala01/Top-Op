@@ -94,5 +94,5 @@ class AgentFileSaver:
             self.createAgentFile()
 
         os.chdir(self.agentFolderPath)
-        np.savetxt(fileNameToSaveAs,array,delimiter=',',header=array.shape)
+        np.savetxt(fileNameToSaveAs,array,delimiter=',',header=str(array.shape))
         os.chdir(originalWorkingDirectory)

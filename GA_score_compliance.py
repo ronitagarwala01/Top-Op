@@ -113,7 +113,7 @@ class topOpter:
     def sensitivityAnalysis(self,x):
         #reshape x into a 1D array to perform calculations
         x = np.reshape(x,(self.nelx*self.nely))
-        x = np.maximum(0,np.minimum(x,1))
+        x = np.maximum(0.01,np.minimum(x,1))
         #Apply the force fill and force free areas
         x = np.where(self.passive == 1,0,x)
         x = np.where(self.passive == 2,1,x)

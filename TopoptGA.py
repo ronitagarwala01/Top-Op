@@ -7,6 +7,7 @@ from FileSaver import AgentFileSaver
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.widgets import Slider
+from random import randint
 
 """
 Wrapped within an iterator:
@@ -41,17 +42,26 @@ def topOptFitnessFuntion(member,topOpt:topOpter):
     """
     Takes a member of the population and scores the memeber based on it's compliance given the initial loads in the topOpt
 
-    The subtract the compliance constraint to get a negative value if the member is within the compliance contition
-
-    Apply a ReLU squared to the compliance to penalize high compliance values
+    If the compliance is above the required ammount then add a large penatly
+    Otherwise return 0
     """
-    compliance = topOpt.getCompliance(member)
-    score = compliance - topOpt.complianceMax
-    if(score < 0):
-        score = 0
+    compliance,dc,K_unconstrained,K_constrained,u_unconstrained,u_constrained = topOpt.sensitivityAnalysis(member)
+    fileSaver = AgentFileSaver(randint(0,9999),topOpt.nelx,topOpt.nely)
+
+    fileSaver.saveNumpyArray("Compliance",np.array([compliance]))
+    fileSaver.saveNumpyArray("Compliance_Jacobian",dc)
+    fileSaver.saveNumpyArray("StiffnessMatrix_unconstrained",K_unconstrained.toarray())
+    fileSaver.saveNumpyArray("StiffnessMatrix_constrained",K_constrained.toarray())
+    fileSaver.saveNumpyArray("DisplacementVector_unconstrained",u_unconstrained)
+    fileSaver.saveNumpyArray("DisplacementVector_constrained",u_constrained)
+    fileSaver.saveNumpyArray("xPhys",member.astype("int32"))
+
     
-    score = score**2
-    return score
+
+    if(compliance > topOpt.complianceMax):
+        return topOpt.nelx*topOpt.nely
+
+    return 0
 
 def applyConstraintsToPopulation(population,topOpt:topOpter):
     """
@@ -87,7 +97,7 @@ if __name__ == "__main__":
     fig.show()
 
 
-    numPop = 10
+    numPop = 100
     numIterations = 100
     goalFitness = 10
 
