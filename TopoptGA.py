@@ -48,13 +48,14 @@ def topOptFitnessFuntion(member,topOpt:topOpter):
     compliance,dc,K_unconstrained,K_constrained,u_unconstrained,u_constrained = topOpt.sensitivityAnalysis(member)
     fileSaver = AgentFileSaver(randint(0,9999),topOpt.nelx,topOpt.nely)
 
-    fileSaver.saveNumpyArray("Compliance",np.array([compliance]))
-    fileSaver.saveNumpyArray("Compliance_Jacobian",dc)
-    fileSaver.saveNumpyArray("StiffnessMatrix_unconstrained",K_unconstrained.toarray())
-    fileSaver.saveNumpyArray("StiffnessMatrix_constrained",K_constrained.toarray())
-    fileSaver.saveNumpyArray("DisplacementVector_unconstrained",u_unconstrained)
-    fileSaver.saveNumpyArray("DisplacementVector_constrained",u_constrained)
-    fileSaver.saveNumpyArray("xPhys",member.astype("int32"))
+    
+    fileSaver.saveCompressedFiles(  Compliance=np.array([compliance]),
+                                    Compliance_Jacobian=dc,
+                                    StiffnessMatrix_unconstrained=K_unconstrained.toarray(),
+                                    StiffnessMatrix_constrained=K_constrained.toarray(),
+                                    DisplacementVector_unconstrained=u_unconstrained,
+                                    DisplacementVector_constrained=u_constrained,
+                                    xPhys=member.astype("int32"))
 
     
 
@@ -71,7 +72,40 @@ def applyConstraintsToPopulation(population,topOpt:topOpter):
     for i in range(len(population)):
         population[i] = topOpt.applyConstraints(population[i])
 
-if __name__ == "__main__":
+def testSave():
+    nelx=10
+    nely=10
+    volfrac=0.4
+    rmin=5.4
+    penal=3.0
+    ft=0
+    maxCompliance = 10
+
+    m = np.ones((nelx,nely))
+    circle_1 = [.2,.3,.1,1,(3/2)*np.pi]
+    circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
+    circle_3 = [.8,.7,.1,1,(3/2)*np.pi]
+
+    filledArea,supportArea,forceVector = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
+    t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
+    t.ApplyProblem(filledArea,supportArea,forceVector)
+
+    print(topOptFitnessFuntion(m,t))
+
+def testLoad():
+    path = "Agents/10_10/Agent_3558/Agent3558.csv.npz"
+
+    data = np.load(path,allow_pickle=True)
+
+    print(data)
+    arr0 = data['arr_0']
+    print(arr0)
+    for x in arr0:
+        print(x)
+
+
+
+def main():
     #start by defining the topopt problem we will solve
     nelx=10
     nely=10
@@ -149,3 +183,8 @@ if __name__ == "__main__":
             print(selectedPopulation[0])
 
         newPopulation = extractSolutions(selectedPopulation)
+
+
+
+if __name__ == "__main__":
+    testLoad()

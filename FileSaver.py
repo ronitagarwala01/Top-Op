@@ -79,6 +79,28 @@ class AgentFileSaver:
 
         os.chdir(originalWorkingDirectory)
 
+    def saveCompressedFiles(self, **args):
+        """
+        Takes the files currently stored in the save array and saves them to a file
+        """
+        originalWorkingDirectory = os.getcwd()
+        if(len(self.agentFolderPath) == 0):
+            self.createAgentFile()
+
+        os.chdir(self.agentFolderPath)
+
+        
+        fileNameToSaveAs = "Agent{}".format(self.number) + ".csv"
+        try:
+            np.savez_compressed(fileNameToSaveAs,args)
+        except:
+            print("Something went wrong.")
+            print("Tried to save: {}".format(fileNameToSaveAs))
+
+
+        os.chdir(originalWorkingDirectory)
+
+
     def saveNumpyArray(self,name:str,array:np.ndarray):
         """
         Takes a file name as well as a numpy array and stores it inside the file for the agent.
