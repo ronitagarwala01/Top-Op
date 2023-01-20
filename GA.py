@@ -12,8 +12,16 @@ Generation of new population
                     Randomly populate each index of array with either 0 or 1
                 Return array
 """
-def memberGenerator(nelx, nely):
-    member = np.random.randint(0, 1, size=(nelx, nely))
+def memberGenerator(nelx, nely,fillPercent:float= 0.5):
+    """
+    CReates a random 2D numpy array of shape = (nelx,nely)
+    and fills it with random zeros and ones.
+    If fill Percent  == 1 then the memeber will be a solic block
+    elif fill percent == 0 the member will be an empty block
+    """
+    fillPercent = max(0,min(fillPercent,1))
+
+    member = np.random.choice([0, 1], size=(nelx, nely),p = [1-fillPercent,fillPercent])
 
     return member
 
@@ -22,7 +30,8 @@ def generateInitalPopulation(nelx, nely, numMembers):
 
     for i in range(numMembers):
 
-        population.append(memberGenerator(nelx, nely))
+        fillPercent = min(0.5,i/numMembers)
+        population.append(memberGenerator(nelx, nely,fillPercent))
 
     return population
 
@@ -36,24 +45,24 @@ Wrapped within an iterator:
                     Return sum
             Pair each member with fitness value
 """
-# def memberAndFitnessPairing(member, fitnessValue):
-#     memberFitnessTuple = (member, fitnessValue)
+def memberAndFitnessPairing(member, fitnessValue):
+    memberFitnessTuple = (member, fitnessValue)
 
-#     return memberFitnessTuple
+    return memberFitnessTuple
 
-# def fitnessFunction(member):
-#     fitnessValue = np.sum(member)
+def fitnessFunction(member):
+    fitnessValue = np.sum(member)
 
-#     return fitnessValue
+    return fitnessValue
 
-# def evaluation(population):
-#     memberFitnessValuePair = []
+def evaluation(population):
+    memberFitnessValuePair = []
 
-#     for member in population:
-#         fitnessValue = fitnessFunction(member)
-#         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
+    for member in population:
+        fitnessValue = fitnessFunction(member)
+        memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
 
-#     return memberFitnessValuePair
+    return memberFitnessValuePair
 
 
 """
@@ -108,9 +117,17 @@ def shouldSelect(member):
     return choice
 
 
-def selection(sortedPairs, percentToSelect, percentElite):
-    numToSelect = int(np.ceil(len(sortedPairs) * percentToSelect))
-    numElite = int(np.ceil(len(sortedPairs) * percentElite))
+def selection(sortedPairs, popuationSize, percentElite):
+    """
+    Select and return a subset of the current population to match a given size
+
+    paramenters:
+        sortedPairs: A list of all members and their coresponding fitness score sorted by lowest(best) fittness first
+        populationSize: The size of the population to be returned
+        percentElite: The percent of top individuals that will allways be chosen(based off population size)
+    """
+    numToSelect = popuationSize
+    numElite = int(np.ceil(popuationSize * percentElite))
 
     if len(sortedPairs) <= 4:
         return sortedPairs
@@ -277,18 +294,25 @@ def shouldMutate():
     return np.random.choice(boolInt, p=probability)
 
 
-def mutateMember(solution):
-    unraveledSolution = np.ravel(solution)
-    mutatedSolution = []
 
-    for element in unraveledSolution:
-        if shouldMutate():
-            element = int(np.absolute(element - 1))
-            mutatedSolution.append(element)
-        else:
-            mutatedSolution.append(element)
+def mutateMember(solution,materialToAdd_percent:float=0.1,percentToRemove:float = 0.5):
+    """
+    Takes a given member and randomly adds or removes material to it.
 
-    mutatedSolution = np.reshape(mutatedSolution, newshape=solution.shape)
+    Parameters:
+        solution: the numpy array holding the member to be mutated
+        materialToAdd_percent: The percent of material that will either be added or removed from the member durring mutation
+        percentToRemove: The percent chance that material will actually be removed instead of added to the member
+    """
+    materialToAdd_percent = max(0,min(materialToAdd_percent,1))
+    percentToRemove = max(0,min(1,percentToRemove))
+    materialToAdd = np.random.choice([0,1],size = solution.shape,p = [1-materialToAdd_percent,materialToAdd_percent])
+
+    if(np.random.random() >= percentToRemove): # add material
+        mutatedSolution = np.where(materialToAdd == 1,1,solution)
+    else:#remove material
+        mutatedSolution = np.where(materialToAdd == 1,0,solution)
+    
 
     return mutatedSolution
 

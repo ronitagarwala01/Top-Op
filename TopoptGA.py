@@ -31,11 +31,12 @@ def fitnessFunction(member):
 
 def evaluation(population,topOpt:topOpter):
     memberFitnessValuePair = []
-
-    for member in population:
+    print("Evaluating Population of size {}:".format(len(population)))
+    for i,member in enumerate(population):
+        print("\t{:.2f}%".format(100*(i/len(population))),end ='\r')
         fitnessValue = fitnessFunction(member) + topOptFitnessFuntion(member,topOpt)
         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
-
+    print("\t100%          \nDone.")
     return memberFitnessValuePair
 
 def topOptFitnessFuntion(member,topOpt:topOpter):
@@ -46,16 +47,18 @@ def topOptFitnessFuntion(member,topOpt:topOpter):
     Otherwise return 0
     """
     compliance,dc,K_unconstrained,K_constrained,u_unconstrained,u_constrained = topOpt.sensitivityAnalysis(member)
-    fileSaver = AgentFileSaver(randint(0,9999),topOpt.nelx,topOpt.nely)
 
-    
-    fileSaver.saveCompressedFiles(  Compliance=np.array([compliance]),
-                                    Compliance_Jacobian=dc,
-                                    StiffnessMatrix_unconstrained=K_unconstrained.toarray(),
-                                    StiffnessMatrix_constrained=K_constrained.toarray(),
-                                    DisplacementVector_unconstrained=u_unconstrained,
-                                    DisplacementVector_constrained=u_constrained,
-                                    xPhys=member.astype("int32"))
+    if(False):
+        fileSaver = AgentFileSaver(randint(0,9999),topOpt.nelx,topOpt.nely)
+
+        
+        fileSaver.saveCompressedFiles(  Compliance=np.array([compliance]),
+                                        Compliance_Jacobian=dc,
+                                        StiffnessMatrix_unconstrained=K_unconstrained.toarray(),
+                                        StiffnessMatrix_constrained=K_constrained.toarray(),
+                                        DisplacementVector_unconstrained=u_unconstrained,
+                                        DisplacementVector_constrained=u_constrained,
+                                        xPhys=member.astype("int32"))
 
     
 
@@ -107,28 +110,32 @@ def testLoad():
 
 def main():
     #start by defining the topopt problem we will solve
-    nelx=10
-    nely=10
+    nelx=20
+    nely=20
     volfrac=0.4
     rmin=5.4
     penal=3.0
     ft=0
-    maxCompliance = 10
+    maxCompliance = 5
+
+    DisplayFlag = True
     # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
     # and the counterclockwise angle of the force in degrees.
-    circle_1 = [.2,.3,.1,1,(3/2)*np.pi]
+    circle_1 = [.15,.15,.1,1,(3/2)*np.pi]
     circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
-    circle_3 = [.8,.7,.1,1,(3/2)*np.pi]
+    circle_3 = [.85,.85,.1,1,(3/2)*np.pi]
 
     filledArea,supportArea,forceVector = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
     t.ApplyProblem(filledArea,supportArea,forceVector)
+    #t.applyCantileiverSetup()
 
     #import matplotlib to allow user to visualize the best agent of the current population
-    plt.ion() # Ensure that redrawing is possible
-    fig,ax = plt.subplots(1,1)
-    im1 = ax.imshow(np.zeros((nelx,nely)), cmap='gray_r', interpolation='none',norm=colors.Normalize(vmin=0,vmax=1))
-    fig.show()
+    if(DisplayFlag):
+        plt.ion() # Ensure that redrawing is possible
+        fig,ax = plt.subplots(1,1)
+        im1 = ax.imshow(np.zeros((nelx,nely)), cmap='gray_r', interpolation='none',norm=colors.Normalize(vmin=0,vmax=1))
+        fig.show()
 
 
     numPop = 100
@@ -167,7 +174,7 @@ def main():
         # Selection
         sortedPopulation = sortMemberFitnessValuePairs(memberFitnessValuePairs)
 
-        if(plt.fignum_exists(fig.number)):
+        if(DisplayFlag and plt.fignum_exists(fig.number)):
             #print(sortedPopulation[0])
             im1.set_array(sortedPopulation[0][0])
             fig.canvas.draw()
@@ -176,7 +183,7 @@ def main():
         # Selection takes pop, numToSelect, and numElite
         # numToSelect is basically the population cap
         #print("select")
-        selectedPopulation = selection(sortedPopulation, .5, .2)
+        selectedPopulation = selection(sortedPopulation, numPop, .2)
 
         if convergenceTest(selectedPopulation, goalFitness):
             print('"Converged"')
@@ -187,4 +194,4 @@ def main():
 
 
 if __name__ == "__main__":
-    testLoad()
+    main()

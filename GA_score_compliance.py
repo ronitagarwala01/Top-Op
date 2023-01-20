@@ -311,3 +311,15 @@ class topOpter:
         x = np.reshape(x,(self.nelx,self.nely))
         return x
 
+    def applyCantileiverSetup(self):
+        anchorArray = np.zeros((self.nelx,self.nely))
+        #fully anchor the far left side
+        for y in range(self.nely):
+            anchorArray[0,y] = 3
+        self.updateFixed(anchorArray)
+
+        # apply a force to the far richt side at the center
+        self.updateForceVectors([[self.nelx-1,self.nely//2,0,1],[self.nelx-1,self.nely//2,0,0]])
+
+
+
