@@ -132,7 +132,7 @@ def main():
     nelx=30
     nely=30
     volfrac=0.4
-    rmin=5.4
+    rmin=1.5
     penal=3.0
     ft=0
     maxCompliance = 30

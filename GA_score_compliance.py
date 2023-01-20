@@ -327,7 +327,7 @@ class topOpter:
         good for removing checker boarding
         """
         
-        xnew = (self.H@np.reshape(x,(self.nelx*self.nely,1)))/self.Hs
+        xnew = self.H@(np.reshape(x,(self.nelx*self.nely,1))/self.Hs)
         return np.reshape(np.where(xnew < cutoff,0,1),(self.nelx,self.nely))
 
 
