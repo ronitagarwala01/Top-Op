@@ -321,5 +321,13 @@ class topOpter:
         # apply a force to the far richt side at the center
         self.updateForceVectors([[self.nelx-1,self.nely//2,0,1],[self.nelx-1,self.nely//2,0,0]])
 
+    def blurFilterCutoff(self,x,cutoff):
+        """
+        Applyies a blur filter over the element and then removes any material below the cuttoff value
+        good for removing checker boarding
+        """
+        
+        xnew = (self.H@np.reshape(x,(self.nelx*self.nely,1)))/self.Hs
+        return np.reshape(np.where(xnew < cutoff,0,1),(self.nelx,self.nely))
 
 

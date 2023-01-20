@@ -31,10 +31,11 @@ def fitnessFunction(member):
 
 def evaluation(population,topOpt:topOpter):
     memberFitnessValuePair = []
+    penaltyFActor = 2
     print("Evaluating Population of size {}:".format(len(population)))
     for i,member in enumerate(population):
         print("\t{:.2f}%".format(100*(i/len(population))),end ='\r')
-        fitnessValue = fitnessFunction(member) + topOptFitnessFuntion(member,topOpt)
+        fitnessValue = fitnessFunction(member) + penaltyFActor*topOptFitnessFuntion(member,topOpt)
         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
     print("\t100%          \nDone.")
     return memberFitnessValuePair
@@ -75,6 +76,20 @@ def applyConstraintsToPopulation(population,topOpt:topOpter):
     for i in range(len(population)):
         population[i] = topOpt.applyConstraints(population[i])
 
+def removeExessMaterial(member,matarialToRemove):
+    return np.where(matarialToRemove==True,member,0)
+
+def clearExessMaterialFromPopulation(population,materialToRemove,percentChanceToRemove:float = 1.0):
+    for i in range(len(population)):
+        if(np.random.random() <= percentChanceToRemove):
+            population[i] = removeExessMaterial(population[i],materialToRemove)
+
+def filterPopulationMutation(population,topOpt):
+    newPopulation = []
+    for member in population:
+        newPopulation.append(topOpt.blurFilterCutoff(member,np.random.random()))
+    return newPopulation
+
 def testSave():
     nelx=10
     nely=10
@@ -89,7 +104,7 @@ def testSave():
     circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
     circle_3 = [.8,.7,.1,1,(3/2)*np.pi]
 
-    filledArea,supportArea,forceVector = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
+    filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
     t.ApplyProblem(filledArea,supportArea,forceVector)
 
@@ -106,17 +121,21 @@ def testLoad():
     for x in arr0:
         print(x)
 
-
+def dispayMember(figure,figImage,member):
+    if(plt.fignum_exists(figure.number)):
+        figImage.set_array(member)
+        figure.canvas.draw()
+        figure.canvas.flush_events()
 
 def main():
     #start by defining the topopt problem we will solve
-    nelx=20
-    nely=20
+    nelx=30
+    nely=30
     volfrac=0.4
     rmin=5.4
     penal=3.0
     ft=0
-    maxCompliance = 5
+    maxCompliance = 30
 
     DisplayFlag = True
     # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
@@ -125,7 +144,7 @@ def main():
     circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
     circle_3 = [.85,.85,.1,1,(3/2)*np.pi]
 
-    filledArea,supportArea,forceVector = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
+    filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
     t.ApplyProblem(filledArea,supportArea,forceVector)
     #t.applyCantileiverSetup()
@@ -143,7 +162,12 @@ def main():
     goalFitness = 10
 
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
+    clearExessMaterialFromPopulation(newPopulation,minViableArea,0.2)
     applyConstraintsToPopulation(newPopulation,t)
+
+
+    if(DisplayFlag):
+        dispayMember(fig,im1,newPopulation[-1])
 
     for x in range(numIterations):
         print("Iteration:", x)
@@ -158,12 +182,16 @@ def main():
         # Crossover & Mutation
         newCrossedMembers = crossover(toCross)
         newMutatedMembers = mutation(toMutate)
+        newFilteredMembers = filterPopulationMutation(newPopulation,t)
 
         for crossed in newCrossedMembers:
             newPopulation.append(crossed)
 
         for mutated in newMutatedMembers:
             newPopulation.append(mutated)
+        
+        for filtered in newFilteredMembers:
+            newPopulation.append(filtered)
 
         applyConstraintsToPopulation(newPopulation,t)
 
@@ -174,11 +202,9 @@ def main():
         # Selection
         sortedPopulation = sortMemberFitnessValuePairs(memberFitnessValuePairs)
 
-        if(DisplayFlag and plt.fignum_exists(fig.number)):
+        if(DisplayFlag):
             #print(sortedPopulation[0])
-            im1.set_array(sortedPopulation[0][0])
-            fig.canvas.draw()
-            fig.canvas.flush_events()
+            dispayMember(fig,im1,sortedPopulation[0][0])
 
         # Selection takes pop, numToSelect, and numElite
         # numToSelect is basically the population cap
@@ -190,7 +216,7 @@ def main():
             print(selectedPopulation[0])
 
         newPopulation = extractSolutions(selectedPopulation)
-
+    #input()
 
 
 if __name__ == "__main__":

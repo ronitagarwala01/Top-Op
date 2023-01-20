@@ -30,7 +30,7 @@ def generateInitalPopulation(nelx, nely, numMembers):
 
     for i in range(numMembers):
 
-        fillPercent = min(0.5,i/numMembers)
+        fillPercent = max(0.5,i/numMembers)
         population.append(memberGenerator(nelx, nely,fillPercent))
 
     return population
@@ -320,7 +320,11 @@ def mutation(newGeneration):
     mutatedPopulation = []
 
     for member in newGeneration:
-        mutatedMember = mutateMember(member)
+        materialToAdd = np.random.random()/5 # value from [0,0.2)
+        #Generate 2 members one with added material, one with removed material
+        mutatedMember = mutateMember(member,materialToAdd,1)
+        mutatedPopulation.append(mutatedMember)
+        mutatedMember = mutateMember(member,materialToAdd,0)
         mutatedPopulation.append(mutatedMember)
 
     return  mutatedPopulation
