@@ -87,7 +87,10 @@ def clearExessMaterialFromPopulation(population,materialToRemove,percentChanceTo
 def filterPopulationMutation(population,topOpt):
     newPopulation = []
     for member in population:
-        newPopulation.append(topOpt.blurFilterCutoff(member,np.random.random()))
+
+        newmemeber = topOpt.blurFilterCutoff(member,np.random.random())
+        child = CrossoverBooleanAnd([member,newmemeber])
+        newPopulation.append(child)
     return newPopulation
 
 def testSave():
@@ -121,6 +124,17 @@ def testLoad():
     for x in arr0:
         print(x)
 
+def testMutate():
+    ar1 = np.random.choice([0,1],size=5)
+    ar2 = np.random.choice([0,1],size=5)
+
+    print(ar1)
+    print(ar2)
+
+    print(CrossoverBooleanAnd([ar1,ar2]))
+
+
+
 def dispayMember(figure,figImage,member):
     if(plt.fignum_exists(figure.number)):
         figImage.set_array(member)
@@ -149,16 +163,21 @@ def main():
     t.ApplyProblem(filledArea,supportArea,forceVector)
     #t.applyCantileiverSetup()
 
+    plt_x_subplots = 2
+    plt_y_subplots = 2
+    im_array = []
     #import matplotlib to allow user to visualize the best agent of the current population
     if(DisplayFlag):
         plt.ion() # Ensure that redrawing is possible
-        fig,ax = plt.subplots(1,1)
-        im1 = ax.imshow(np.zeros((nelx,nely)), cmap='gray_r', interpolation='none',norm=colors.Normalize(vmin=0,vmax=1))
+        fig,ax = plt.subplots(plt_x_subplots,plt_y_subplots)
+        for x1 in range(plt_x_subplots):
+            for y1 in range(plt_y_subplots):
+                im_array.append(ax[x1,y1].imshow(np.zeros((nelx,nely)), cmap='gray_r', interpolation='none',norm=colors.Normalize(vmin=0,vmax=1)))
         fig.show()
 
 
     numPop = 100
-    numIterations = 100
+    numIterations = 200
     goalFitness = 10
 
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
@@ -167,7 +186,7 @@ def main():
 
 
     if(DisplayFlag):
-        dispayMember(fig,im1,newPopulation[-1])
+        dispayMember(fig,im_array[0],newPopulation[-1])
 
     for x in range(numIterations):
         print("Iteration:", x)
@@ -180,7 +199,7 @@ def main():
         np.random.shuffle(toCross)
 
         # Crossover & Mutation
-        newCrossedMembers = crossover(toCross)
+        newCrossedMembers = crossover(toCross,4)
         newMutatedMembers = mutation(toMutate)
         newFilteredMembers = filterPopulationMutation(newPopulation,t)
 
@@ -204,7 +223,9 @@ def main():
 
         if(DisplayFlag):
             #print(sortedPopulation[0])
-            dispayMember(fig,im1,sortedPopulation[0][0])
+            for x1 in range(plt_x_subplots):
+                for y1 in range(plt_y_subplots):
+                    dispayMember(fig,im_array[x1*plt_x_subplots + y1],sortedPopulation[x1*plt_x_subplots + y1][0])
 
         # Selection takes pop, numToSelect, and numElite
         # numToSelect is basically the population cap

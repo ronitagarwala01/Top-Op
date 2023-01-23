@@ -235,18 +235,22 @@ def swapRandomRowColBlocks(Individuals):
 
     return rowColCross
 
+def CrossoverBooleanAnd(solutionPair):
+    Individual1, Individual2 = solutionPair
+
+    child = np.logical_and(Individual1, Individual2) * 1
+    return child
 
 def crossoverOperationWrapper(solutionPair, alternate=1):
     crossoverSolutions = []
 
-    if alternate == 0:
-        newSolution1, newSolution2 = alternateRowSwap(solutionPair)
-        newSolution3, newSolution4 = alternateColSwap(solutionPair)
-        newSolution5, newSolution6 = alternateRowColSwap(solutionPair)
-    else:
-        newSolution1, newSolution2 = swapRandomRowBlocks(solutionPair)
-        newSolution3, newSolution4 = swapRandomColBlocks(solutionPair)
-        newSolution5, newSolution6 = swapRandomRowColBlocks(solutionPair)
+
+    
+    newSolution1,   newSolution2    = swapRandomRowBlocks(solutionPair)
+    newSolution3,   newSolution4    = swapRandomColBlocks(solutionPair)
+    newSolution5,   newSolution6    = swapRandomRowColBlocks(solutionPair)
+    newSolution7                    = CrossoverBooleanAnd(solutionPair)
+
 
     crossoverSolutions.append(newSolution1)
     crossoverSolutions.append(newSolution2)
@@ -254,10 +258,11 @@ def crossoverOperationWrapper(solutionPair, alternate=1):
     crossoverSolutions.append(newSolution4)
     crossoverSolutions.append(newSolution5)
     crossoverSolutions.append(newSolution6)
+    crossoverSolutions.append(newSolution7)
 
     return crossoverSolutions
 
-def crossover(shuffledPopulation, alternate=0):
+def crossover(shuffledPopulation,childrenPerCrossover :int, alternate=0 ):
     # Takes a shuffled population, we are just crossing each member along the array
 
     newMembers = []
@@ -270,8 +275,14 @@ def crossover(shuffledPopulation, alternate=0):
             memberPair = (shuffledPopulation[i], shuffledPopulation[i + 1])
 
         newSolutions = crossoverOperationWrapper(memberPair, alternate)
+
+
+        #shuffle and return only some of the possible solutions
+        childrenPerCrossover = int(min(childrenPerCrossover,len(newSolutions)-1))
+        np.random.shuffle(newSolutions)
+        newSolutions_croped = newSolutions[:childrenPerCrossover]
         
-        for solution in newSolutions:
+        for solution in newSolutions_croped:
             newMembers.append(solution)
 
     return newMembers

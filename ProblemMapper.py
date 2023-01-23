@@ -272,7 +272,7 @@ def generateMinimumMemberAccordinToProblemStatement2D(x_size:int,y_size:int,circ
                     #print(i,c1,j,c2)
                     #print("({}-{})/({}-{})".format(end_y,start_y,end_x,start_x))
                     lineSlope = (end_y-start_y)/(end_x-start_x)
-                    printThing(start_x,start_y,startRadius,end_x,end_y,endRadius)
+                    #printThing(start_x,start_y,startRadius,end_x,end_y,endRadius)
                     for x in range(start_x,end_x+1):
                         midPoint_y = lineSlope * (x-start_x) + start_y
                         interpolate = 1-(x-start_x)/(end_x-start_x)
