@@ -6,7 +6,6 @@ from ProblemMapper import *
 from FileSaver import AgentFileSaver
 import matplotlib.pyplot as plt
 from matplotlib import colors
-from matplotlib.widgets import Slider
 from random import randint
 
 """
@@ -35,12 +34,12 @@ def evaluation(population,topOpt:topOpter):
     print("Evaluating Population of size {}:".format(len(population)))
     for i,member in enumerate(population):
         print("\t{:.2f}%".format(100*(i/len(population))),end ='\r')
-        fitnessValue = fitnessFunction(member) + penaltyFActor*topOptFitnessFuntion(member,topOpt)
+        fitnessValue = fitnessFunction(member) + penaltyFActor*topOptFitnessFuntion(member,topOpt,np.random.random() < .01)
         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
     print("\t100%          \nDone.")
     return memberFitnessValuePair
 
-def topOptFitnessFuntion(member,topOpt:topOpter):
+def topOptFitnessFuntion(member,topOpt:topOpter, saveFlag:bool = False):
     """
     Takes a member of the population and scores the memeber based on it's compliance given the initial loads in the topOpt
 
@@ -49,17 +48,9 @@ def topOptFitnessFuntion(member,topOpt:topOpter):
     """
     compliance,dc,K_unconstrained,K_constrained,u_unconstrained,u_constrained = topOpt.sensitivityAnalysis(member)
 
-    if(False):
-        fileSaver = AgentFileSaver(randint(0,9999),topOpt.nelx,topOpt.nely)
-
-        
-        fileSaver.saveCompressedFiles(  Compliance=np.array([compliance]),
-                                        Compliance_Jacobian=dc,
-                                        StiffnessMatrix_unconstrained=K_unconstrained.toarray(),
-                                        StiffnessMatrix_constrained=K_constrained.toarray(),
-                                        DisplacementVector_unconstrained=u_unconstrained,
-                                        DisplacementVector_constrained=u_constrained,
-                                        xPhys=member.astype("int32"))
+    if(saveFlag):
+        fileSaver = AgentFileSaver(randint(0,99999),topOpt.nelx,topOpt.nely)
+        fileSaver.save_GA_data_compressed(member.astype("int32"),topOpt.f,topOpt.free,compliance,topOpt.complianceMax)
 
     
 
@@ -67,6 +58,7 @@ def topOptFitnessFuntion(member,topOpt:topOpter):
         return topOpt.nelx*topOpt.nely
 
     return 0
+
 
 def applyConstraintsToPopulation(population,topOpt:topOpter):
     """
@@ -93,6 +85,8 @@ def filterPopulationMutation(population,topOpt):
         newPopulation.append(child)
     return newPopulation
 
+
+
 def testSave():
     nelx=10
     nely=10
@@ -111,18 +105,22 @@ def testSave():
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
     t.ApplyProblem(filledArea,supportArea,forceVector)
 
-    print(topOptFitnessFuntion(m,t))
+    print(topOptFitnessFuntion(m,t,saveFlag=True))
+
+
+
 
 def testLoad():
-    path = "Agents/10_10/Agent_3558/Agent3558.csv.npz"
+    agentNUm = 5132
+    path = "Agents/10_10/Agent_{}/Agent{}.csv.npz".format(agentNUm,agentNUm)
 
     data = np.load(path,allow_pickle=True)
 
     print(data)
-    arr0 = data['arr_0']
-    print(arr0)
-    for x in arr0:
-        print(x)
+    print(data['a'])
+    print(data['b'])
+    print(data['c'])
+    print(data['d'])
 
 def testMutate():
     ar1 = np.random.choice([0,1],size=5)
@@ -141,7 +139,16 @@ def dispayMember(figure,figImage,member):
         figure.canvas.draw()
         figure.canvas.flush_events()
 
-def main():
+def randomCircleGenerator():
+    x1 = np.random.random()
+    y1 = np.random.random()
+    r1 = np.random.random()/3
+    f1 = np.random.random()*3
+    a1 = np.random.random()*2*np.pi
+    c1 = [x1,y1,r1,f1,a1]
+    return c1
+
+def main(maxCompliance):
     #start by defining the topopt problem we will solve
     nelx=30
     nely=30
@@ -149,19 +156,37 @@ def main():
     rmin=1.5
     penal=3.0
     ft=0
-    maxCompliance = 30
 
-    DisplayFlag = True
+    DisplayFlag = False
     # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
     # and the counterclockwise angle of the force in degrees.
+    
     circle_1 = [.15,.15,.1,1,(3/2)*np.pi]
     circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
     circle_3 = [.85,.85,.1,1,(3/2)*np.pi]
+    setupTries = 10
+    canSetUp = False
+    for i in range(setupTries):
+        try:
+            circle_1 = randomCircleGenerator()
+            circle_2 = randomCircleGenerator()
+            circle_3 = randomCircleGenerator()
+        except:
+            canSetUp = False
+        else:
+            canSetUp = True
+            break
+    
+    if(canSetUp == False):
+        return
 
     filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
     t.ApplyProblem(filledArea,supportArea,forceVector)
     #t.applyCantileiverSetup()
+
+    solidMember = removeExessMaterial(np.ones((nelx,nely)),minViableArea)
+    solidMember = t.applyConstraints(solidMember)
 
     plt_x_subplots = 2
     plt_y_subplots = 2
@@ -177,8 +202,7 @@ def main():
 
 
     numPop = 100
-    numIterations = 200
-    goalFitness = 10
+    numIterations = 50
 
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
     clearExessMaterialFromPopulation(newPopulation,minViableArea,0.2)
@@ -212,6 +236,9 @@ def main():
         for filtered in newFilteredMembers:
             newPopulation.append(filtered)
 
+        if(np.random.random() < 0.1):
+            newPopulation.append(solidMember.copy())
+
         applyConstraintsToPopulation(newPopulation,t)
 
         # Evaluation
@@ -231,14 +258,10 @@ def main():
         # numToSelect is basically the population cap
         #print("select")
         selectedPopulation = selection(sortedPopulation, numPop, .2)
-
-        if convergenceTest(selectedPopulation, goalFitness):
-            print('"Converged"')
-            print(selectedPopulation[0])
-
         newPopulation = extractSolutions(selectedPopulation)
     #input()
 
 
 if __name__ == "__main__":
-    main()
+    for i in range(100):
+        main(randint(10,40))

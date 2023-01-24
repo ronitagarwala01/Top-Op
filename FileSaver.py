@@ -9,7 +9,9 @@ class AgentFileSaver:
         self.number = agentNumber
         self.nelx = nelx
         self.nely = nely
-        self.agentDirectory = os.path.join(os.getcwd(),"Agents")
+
+        self.workingDirectory = os.getcwd()
+        self.agentDirectory = os.path.join(self.workingDirectory,"Agents")
         self.agentFolderPath = ""
         self.arraysToSave = []
 
@@ -100,7 +102,6 @@ class AgentFileSaver:
 
         os.chdir(originalWorkingDirectory)
 
-
     def saveNumpyArray(self,name:str,array:np.ndarray):
         """
         Takes a file name as well as a numpy array and stores it inside the file for the agent.
@@ -118,3 +119,24 @@ class AgentFileSaver:
         os.chdir(self.agentFolderPath)
         np.savetxt(fileNameToSaveAs,array,delimiter=',',header=str(array.shape))
         os.chdir(originalWorkingDirectory)
+
+    def save_GA_data_compressed(self,xPhys:np.ndarray,forces:np.ndarray,degreesOfFreedom:np.ndarray,currentCompliance:float,maxCompliance:float):
+
+        originalWorkingDirectory = os.getcwd()
+        if(len(self.agentFolderPath) <= 2):
+            self.createAgentFile()
+
+        os.chdir(self.agentFolderPath)
+        fileNameToSaveAs = "Agent{}".format(self.number) + ".csv"
+
+        formating_array = np.concatenate([[currentCompliance,maxCompliance],xPhys.shape])
+
+        try:
+            np.savez_compressed(fileNameToSaveAs,a=xPhys,b=forces,c=degreesOfFreedom,d=formating_array)
+        except:
+            print("Something went wrong.")
+            print("Tried to save: {}".format(fileNameToSaveAs))
+        os.chdir(originalWorkingDirectory)
+
+
+

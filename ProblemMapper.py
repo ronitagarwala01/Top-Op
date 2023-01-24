@@ -27,6 +27,43 @@ def generateCircles(x:int,y:int,circlesArray,radiusScallingAxes:str="x",correctE
         radiusScallingFactor = y
 
     if(correctErrors):
+        #check if circles go offscreen
+        for i in range(len(circlesArray)):
+            c1_x = circlesArray[i][0] * x
+            c1_y = circlesArray[i][1] * y
+            c1_r = circlesArray[i][2] * radiusScallingFactor
+
+            xCorrectionMade = False
+            yCorrectionMade = False
+
+            if(c1_x + c1_r > x):
+                circlesArray[i][0] =  (x-c1_r)/x
+                print("Shift {} left to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x + c1_r,x))
+                xCorrectionMade = True
+            
+            if(c1_x - c1_r < 0):
+                if(xCorrectionMade):
+                    raise("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
+                else:
+                    circlesArray[i][0] =  c1_r/x
+                    print("Shift {} right to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x - c1_r,0))
+            
+            if(c1_y + c1_r > y):
+                circlesArray[i][1] =  (y-c1_r)/y
+                print("Shift {} down to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y + c1_r,y))
+                yCorrectionMade = True
+            
+            if(c1_y - c1_r < 0):
+                if(yCorrectionMade):
+                    raise("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
+                else:
+                    circlesArray[i][1] =  c1_r/y
+                print("Shift {} up to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y - c1_r,0))
+
+
+
+
+        #check if circles overlap
         for i,c1 in enumerate(circlesArray):
             for j,c2 in enumerate(circlesArray):
                 if(i==j):
@@ -47,13 +84,16 @@ def generateCircles(x:int,y:int,circlesArray,radiusScallingAxes:str="x",correctE
 
                         radiusScallingFactor = np.floor(distBetweenCirclesCenters/(c1_r+c2_r))
                         if(radiusScallingFactor <= 0):
-                            raise("Error in generateing Circles. Circle {} and Circle {} are too close together".format(i,j))
+                            raise("Error in generating Circles. Circle {} and Circle {} are too close together".format(i,j))
     
     grid = np.zeros((x,y))
+    #print(circlesArray)
     for c_x,c_y,c_r in circlesArray:
+        #print(c_x,c_r,c_r)
         c_x *= x
         c_y *= y
         c_r *= radiusScallingFactor
+        grid[int(c_x),int(c_y)] = 1
         for x1 in range(np.maximum(np.floor(c_x - c_r),0).astype("int32"),np.minimum(np.ceil(c_x + c_r) + 1,x).astype("int32")):
             for y1 in range(np.maximum(np.floor(c_y - c_r),0).astype("int32"),np.minimum(np.ceil(c_y + c_r) + 1,y).astype("int32")):
                 if(np.sqrt((x1-c_x)**2 + (y1-c_y)**2 ) <= c_r):
@@ -209,7 +249,7 @@ def mapProblemStatement2D(x:int,y:int,circle1Data,circle2Data,circle3Data,radius
     c2_forceData = [circle2Data[0],circle2Data[1],circle2Data[3],circle2Data[4]]
     c3_forceData = [circle3Data[0],circle3Data[1],circle3Data[3],circle3Data[4]]
 
-    filledArea,radiusFactor = generateCircles(x,y,[c1_circleData,c2_circleData,c3_circleData],radiusScallingAxes,False)
+    filledArea,radiusFactor = generateCircles(x,y,[c1_circleData,c2_circleData,c3_circleData],radiusScallingAxes,True)
 
     supportArea,_ = generateCircles(x,y,[c1_circleData],radiusScallingAxes,False)
 
@@ -298,7 +338,7 @@ def generateMinimumMemberAccordinToProblemStatement2D(x_size:int,y_size:int,circ
                     lineSlope = (end_x-start_x)/(end_y-start_y)
                     for y in range(start_y,end_y+1):
                         midPoint_x = lineSlope * (y-start_y) + start_x
-                        interpolate = (y-start_y)/(end_y-start_y)
+                        interpolate = 1-(y-start_y)/(end_y-start_y)
                         currentRadius = startRadius * interpolate + (1-interpolate)*endRadius
                         for x in range(int(np.floor(midPoint_x - currentRadius)),int(np.ceil(midPoint_x + currentRadius))):
                             grid[max(0,min(x,x_size-1)),max(0,min(y,y_size-1))] = 1
@@ -306,11 +346,11 @@ def generateMinimumMemberAccordinToProblemStatement2D(x_size:int,y_size:int,circ
 
     
     for c_x,c_y,c_r in circlesArray:
-        c_x *= x
-        c_y *= y
+        c_x *= x_size
+        c_y *= y_size
         c_r *= radiusScallingFactor
-        for x1 in range(np.maximum(np.floor(c_x - c_r),0).astype("int32"),np.minimum(np.ceil(c_x + c_r) + 1,x).astype("int32")):
-            for y1 in range(np.maximum(np.floor(c_y - c_r),0).astype("int32"),np.minimum(np.ceil(c_y + c_r) + 1,y).astype("int32")):
+        for x1 in range(int(np.maximum(np.floor(c_x - c_r),0)),int(np.minimum(np.ceil(c_x + c_r) + 1,x_size))):
+            for y1 in range(np.maximum(np.floor(c_y - c_r),0).astype("int32"),np.minimum(np.ceil(c_y + c_r) + 1,y_size).astype("int32")):
                 if(np.sqrt((x1-c_x)**2 + (y1-c_y)**2 ) <= c_r):
                     grid[x1,y1] = 1
     booleanGrid = grid >= 1
