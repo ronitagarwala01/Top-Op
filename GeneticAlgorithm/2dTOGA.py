@@ -5,6 +5,7 @@ from fenicsGA2D import *
 import math
 import matplotlib.pyplot as plt
 from matplotlib import style
+from scipy.ndimage import label
 
 """
 Framework:
@@ -45,34 +46,41 @@ def memberAndFitnessPairing(member, fitnessValue):
 
     return memberFitnessTuple
 
-def fitnessFunction(member, nelx, nely):
-    maxMass = (nelx * nely)
 
-    # fitnessValue = np.sum(member)
-    fitnessValue = maxMass - np.sum(member)
+def fitnessFunction(member, nelx, nely):
+    fitnessValue = np.sum(member)
+
+    roundedMember = np.round(member)
+    labeled_array, numFeatures = label(roundedMember)
+
+    fitnessValue *= numFeatures
 
     C_max = 1000.0
     # S_max = 100000000.0
 
-    stress, compliance = solveConstraints(member)
+    # if (numFeatures >= 0) and (numFeatures <= 3):
+    if numFeatures >= 1 and numFeatures < 5:
+        stress, compliance = solveConstraints(member)
 
-    if math.isnan(compliance):
-        return np.inf
+        if math.isnan(compliance):
+            return np.inf
 
-    print("Compliance: ", compliance)
+        if compliance >= C_max:
+            fitnessValue += (math.exp(penaltyExponent) * (compliance - C_max))
 
-    if compliance >= C_max:
-        fitnessValue += (math.exp(penaltyExponent) * (1/compliance))
-
-    
-    # print("Compliance: ", compliance)
+        print("Compliance: ", compliance)
 
     return fitnessValue
+
 
 def evaluation(population, nelx, nely):
     memberFitnessValuePair = []
 
+    memberNum = 1
+
     for member in population:
+        # print(memberNum); memberNum += 1
+
         fitnessValue = fitnessFunction(member, nelx, nely)
         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
 
@@ -90,7 +98,7 @@ def fitnessValueKeyForSort(n):
 
 def sortMemberFitnessValuePairs(memberFitnessValuePairs):
     sortedScores = sorted(memberFitnessValuePairs, 
-                            key=fitnessValueKeyForSort, reverse=True)
+                            key=fitnessValueKeyForSort, reverse=False)
 
     return sortedScores
 
@@ -195,6 +203,33 @@ def swapRandomRowColBlocks(Individuals):
 
     return rowColCross
 
+def crossoverBooleanNot(solutionPair):
+    Individual1, Individual2 = solutionPair
+
+    child1 = np.logical_not(Individual1) * 1
+    child2 = np.logical_not(Individual2) * 1
+
+    return child1, child2
+
+def crossoverBooleanAnd(solutionPair):
+    Individual1, Individual2 = solutionPair
+
+    child = np.logical_and(Individual1, Individual2) * 1
+    return child
+
+def crossoverBooleanOr(solutionPair):
+    Individual1, Individual2 = solutionPair
+
+    child = np.logical_or(Individual1, Individual2) * 1
+    return child
+
+def crossoverBooleanXor(solutionPair):
+    Individual1, Individual2 = solutionPair
+
+    child = np.logical_xor(Individual1, Individual2) * 1
+    return child
+
+
 
 def crossoverOperationWrapper(solutionPair, alternate=1):
     crossoverSolutions = []
@@ -202,6 +237,10 @@ def crossoverOperationWrapper(solutionPair, alternate=1):
     newSolution1, newSolution2 = swapRandomRowBlocks(solutionPair)
     newSolution3, newSolution4 = swapRandomColBlocks(solutionPair)
     newSolution5, newSolution6 = swapRandomRowColBlocks(solutionPair)
+    # newSolution7, newSolution8 = crossoverBooleanNot(solutionPair)
+    newSolution9               = crossoverBooleanAnd(solutionPair)
+    # newSolution10              = crossoverBooleanOr(solutionPair)
+    # newSolution11              = crossoverBooleanOr(solutionPair)
 
     crossoverSolutions.append(newSolution1)
     crossoverSolutions.append(newSolution2)
@@ -209,6 +248,11 @@ def crossoverOperationWrapper(solutionPair, alternate=1):
     crossoverSolutions.append(newSolution4)
     crossoverSolutions.append(newSolution5)
     crossoverSolutions.append(newSolution6)
+    # crossoverSolutions.append(newSolution7)
+    # crossoverSolutions.append(newSolution8)
+    crossoverSolutions.append(newSolution9)
+    # crossoverSolutions.append(newSolution10)
+    # crossoverSolutions.append(newSolution11)
 
     return crossoverSolutions
 
@@ -230,8 +274,6 @@ def crossover(shuffledPopulation, alternate=0):
             newMembers.append(solution)
 
     return newMembers
-
-
 
 
 
@@ -277,8 +319,8 @@ def mutation(newGeneration):
     return  mutatedPopulation
 
 def materialAroundElement(member, x, y):
-    xMax = member.shape[0]
-    yMax = member.shape[1]
+    xMax = member.shape[1]
+    yMax = member.shape[0]
 
     xi, xj, yi, yj = x-1, x+1, y-1, y+1
 
@@ -292,45 +334,69 @@ def materialAroundElement(member, x, y):
     elif y == yMax:
         yj = y
 
-    surroundingMaterial = np.sum(member[xi:xj+1, yi:yj+1])
+    surroundingMaterial = np.sum(member[yi:yj+1, xi:xj+1])
 
     return surroundingMaterial
 
 
+# def adaptiveMutation(member):
+#     indices, surroundingMass = [], []
+
+#     for i in range(member.shape[0]):
+#         for j in range(member.shape[1]):
+#             index = (i, j)
+#             indices.append(index)
+
+#     for x, y in indices:
+#         mass = materialAroundElement(member, x, y)
+#         surroundingMass.append(mass)
+
+#     surroundingMass = np.array(surroundingMass)
+#     flatMember = np.ravel(member)
+
+#     mutatedSolution = []
+
+#     for x in range(len(flatMember)):
+#         p = surroundingMass[x] / 10
+#         probabilities = [p, 1 - p]
+
+#         if surroundingMass[x] == 1 and flatMember[x] == 1:
+#             mutatedSolution.append(1e-5)
+#         elif shouldMutateVar(probabilities):
+#             if flatMember[x] == 1:
+#                 mutatedSolution.append(1e-5)
+#             else:
+#                 mutatedSolution.append(1)
+#         else:
+#             mutatedSolution.append(flatMember[x])
+
+#     mutatedSolution = np.reshape(mutatedSolution, newshape=member.shape)
+
+#     return mutatedSolution
+
+
 def adaptiveMutation(member):
-    indices, surroundingMass = [], []
+    surroundingMass = 0
 
-    for i in range(member.shape[0]):
-        for j in range(member.shape[1]):
-            index = (i, j)
-            indices.append(index)
 
-    for x, y in indices:
-        mass = materialAroundElement(member, x, y)
-        surroundingMass.append(mass)
+    for y in range(member.shape[0]):
+        for x in range(member.shape[1]):
+            surroundingMass = materialAroundElement(member, x, y)
 
-    surroundingMass = np.array(surroundingMass)
-    flatMember = np.ravel(member)
+            if member[y, x] == 1.e-05 and surroundingMass >= 5:
+                member[y, x] = 1.e+00
+                continue
 
-    mutatedSolution = []
+            p = surroundingMass / 10
 
-    for x in range(len(flatMember)):
-        p = surroundingMass[x] / 10
-        probabilities = [p, 1 - p]
+            if shouldMutateVar([p, 1-p]):
+                if member[y, x] == 1.e+00:
+                    member[y, x] = 1.e-05
+                else:
+                    member[y, x] = 1.e+00
 
-        if surroundingMass[x] == 1 and flatMember[x] == 1:
-            mutatedSolution.append(1e-5)
-        elif shouldMutateVar(probabilities):
-            if flatMember[x] == 1:
-                mutatedSolution.append(1e-5)
-            else:
-                mutatedSolution.append(1)
-        else:
-            mutatedSolution.append(flatMember[x])
+    return member
 
-    mutatedSolution = np.reshape(mutatedSolution, newshape=member.shape)
-
-    return mutatedSolution
 
 def adaptiveMutationPipeline(generation):
     newGeneration = []
@@ -340,8 +406,6 @@ def adaptiveMutationPipeline(generation):
         newGeneration.append(mutatedMember)
 
     return newGeneration
-
-
 
 
 """
@@ -385,11 +449,106 @@ def prune(solutionPairs):
 
 
 
+def isConnected(member, x, y):
+    xMax = member.shape[1] - 1
+    yMax = member.shape[0] - 1
+
+    #   1 
+    # 0   3   
+    #   2   
+    adjX = [x-1, x, x, x+1]
+    adjY = [y, y-1, y+1, y]
+
+    # No, this doesn't make sense to me,
+    # but, it is what sets diag to be intuitive
+    # for this format:
+        # 0   1
+        # 2   3
+    diagX = [x-1, x+1, x-1, x+1]
+    diagY = [y-1, y-1, y+1, y+1]
+
+    canCheckAdj = [1, 1, 1, 1]
+    canCheckDiag = [1, 1, 1, 1]
+
+    connected = [0, 0, 0, 0]
+    diag = [0, 0, 0, 0]
+
+    if x == 0:
+        canCheckAdj[0] = 0
+        canCheckDiag[0], canCheckDiag[2] = 0, 0
+    elif x == xMax:
+        canCheckAdj[3] = 0
+        canCheckDiag[1], canCheckDiag[3] = 0, 0
+
+    if y == 0:
+        canCheckAdj[1] = 0
+        canCheckDiag[0], canCheckDiag[1] = 0, 0
+    elif y == yMax:
+        canCheckAdj[2] = 0
+        canCheckDiag[2], canCheckDiag[3] = 0, 0
+
+
+    for i in range(len(canCheckAdj)):
+        if canCheckAdj[i]:
+            # print('adj: ', i)
+            # print(adjX[i], adjY[i])
+            if member[adjY[i], adjX[i]] == 1.e+00:
+                connected[i] = 1
+
+        if canCheckDiag[i]:
+            # print('diag:', i)
+            if member[diagY[i], diagX[i]] == 1.e+00:
+                diag[i] = 1
+
+    numConnectedAdj = np.sum(connected)
+    numDiag = np.sum(diag)
+    numSurroundingElements = numConnectedAdj + numDiag
+    
+    # if (member[y, x] == 1.e-05) and (numSurroundingElements >= 7):
+    #     member[y, x] = 1.e+00
+    #     return member
+
+    if numSurroundingElements == 0:
+        member[y, x] = 1.e-05
+        return member
+
+    # I am not entirely sure which of this conditionals will provide the best result.
+    # It seems as though it is something that matters and doesn't matter at the same time.
+
+    # if (numConnectedAdj >= 0) and (numConnectedAdj <= 2):
+    if numConnectedAdj >= 0 and numConnectedAdj < 2:
+        for i in range(len(diag)):
+            if diag[i]:
+                adj1 = member[diagY[i], x]
+
+                if adj1 == 1.e+00:
+                    member[y, diagX[i]] = 1.e+00
+                else:
+                    member[diagY[i], x] = 1.e+00
+
+    return member
+
+
+def connectivityConstraint(population):
+    patchedPop = []
+
+    for i in range(int(len(population) / 3)):
+        member = population[i]
+        for y in range(member.shape[0]):
+            for x in range(member.shape[1]):
+                # if member[y, x] == 1.e+00:
+                member = isConnected(member, x, y)
+        patchedPop.append(member)
+
+    patchedPop = np.array(patchedPop)
+
+    return patchedPop
+
 """
     Main!
 """
 def mainWrapper(nelx, nely, numPop, numIterations):
-    nIterCurrent = 0
+    nIterCurrent, nFailures = 0, 0
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
 
     for x in range(numIterations):
@@ -397,7 +556,6 @@ def mainWrapper(nelx, nely, numPop, numIterations):
         if x % 5 == 0:
             global penaltyExponent
             penaltyExponent += 1
-
 
         if x % 10 == 0:
             for i in range(10):
@@ -410,7 +568,7 @@ def mainWrapper(nelx, nely, numPop, numIterations):
         toCross = np.copy(newPopulation)
         toMutate = np.copy(newPopulation)
         toMutateAdaptive = np.copy(newPopulation)
-
+        
         # This will be passed raw to the crossover algorithm
         np.random.shuffle(toCross)
 
@@ -418,7 +576,7 @@ def mainWrapper(nelx, nely, numPop, numIterations):
         newCrossedMembers = crossover(toCross)
         newMutatedMembers = mutation(toMutate)
         newAdaptiveMutated = adaptiveMutationPipeline(toMutateAdaptive)
-
+        
         for crossed in newCrossedMembers:
             newPopulation.append(crossed)
 
@@ -427,6 +585,11 @@ def mainWrapper(nelx, nely, numPop, numIterations):
 
         for mutated in newAdaptiveMutated:
             newPopulation.append(mutated)
+
+        if x % 4 == 0 and x >= 2:
+            newPopulation = connectivityConstraint(newPopulation)
+        
+        # newPopulation = connectivityConstraint(newPopulation)
 
         # Evaluation
         memberFitnessValuePairs = evaluation(newPopulation, nelx, nely)
@@ -440,7 +603,8 @@ def mainWrapper(nelx, nely, numPop, numIterations):
 
         if len(memberFitnessValuePairs) == 0:
             print("Failed")
-            newPopulation = generateInitalPopulation(nelx, nely, numPop)
+            nFailures += 1
+            newPopulation = generateInitalPopulation(nelx, nely, numPop )
             continue
 
         # Selection
@@ -449,7 +613,7 @@ def mainWrapper(nelx, nely, numPop, numIterations):
         # Selection takes pop, numToSelect, and numElite
         # numToSelect is basically the population cap
         # pop, numToKeep, numElite
-        selectedPopulation = selection(sortedPopulation, 400, 120)
+        selectedPopulation = selection(sortedPopulation, 400, 100)
 
         print(selectedPopulation[0])
 
@@ -472,7 +636,7 @@ def mainWrapper(nelx, nely, numPop, numIterations):
 
         plt.close()
 
-    return newPopulation[0], nIterCurrent
+    return newPopulation, nIterCurrent
 
 
 
@@ -523,10 +687,11 @@ def benchmarking(start, end, runsPerDim):
 
 # benchmarking(3, 9, 10)
 
-nelx, nely, numPop, numIter = 15, 30, 500, 40
+nelx, nely, numPop, numIter = 30, 15, 400, 40
 
 startTime = perf_counter()
-finalSolution, _ = mainWrapper(nelx, nely, numPop, numIter)
+finalSolutions, _ = mainWrapper(nelx, nely, numPop, numIter)
+
 endTime = perf_counter()
 
 time = endTime - startTime
@@ -541,12 +706,12 @@ print("Hrs: ", h, "Min: ", m, "Sec: ", s)
 
 
 
-plt.style.use('_mpl-gallery-nogrid')
+# plt.style.use('_mpl-gallery-nogrid')
 
-fig, ax = plt.subplots()
-ax.imshow(finalSolution)
-plt.show(block=True)
+# fig, ax = plt.subplots()
+# ax.imshow(finalSolutions)
+# plt.show(block=True)
 
-fileName = str(nelx) + "x" + str(nely) + "i_" + "final"
+# fileName = str(nelx) + "x" + str(nely) + "i_" + "final"
 
-plt.savefig(fileName)
+# plt.savefig(fileName)
