@@ -138,5 +138,22 @@ class AgentFileSaver:
             print("Tried to save: {}".format(fileNameToSaveAs))
         os.chdir(originalWorkingDirectory)
 
+    def save_UKF_data_compressed(self,xPhys:np.ndarray,forces:np.ndarray,degreesOfFreedom:np.ndarray):
+        """
+        Save the data nessesary to build the displacement vector U
+        from the equation F = KU
+        We will attempt to have the ML model build a variation of U that can be used to cacluate compliance
+        """
+        originalWorkingDirectory = os.getcwd()
+        if(len(self.agentFolderPath) <= 2):
+            self.createAgentFile()
 
+        os.chdir(self.agentFolderPath)
+        fileNameToSaveAs = "Agent{}".format(self.number) + ".csv"
 
+        try:
+            np.savez_compressed(fileNameToSaveAs,a=xPhys,b=forces,c=degreesOfFreedom)
+        except:
+            print("Something went wrong.")
+            print("Tried to save: {}".format(fileNameToSaveAs))
+        os.chdir(originalWorkingDirectory)
