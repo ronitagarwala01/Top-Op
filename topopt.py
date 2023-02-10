@@ -1,4 +1,4 @@
-
+import os
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
@@ -6,13 +6,15 @@ from matplotlib import pyplot as plt
 
 
 class topOpter:
-    def __init__(self,nelx,nely,volfrac,penal,rmin,ft):
+    def __init__(self,nelx,nely,volfrac,penal,rmin,ft,saveFile:bool=False):
         self.nelx =nelx
         self.nely = nely
         self.volfrac = volfrac
         self.penal = penal
         self.rmin = rmin
         self.ft = ft
+
+        self.SaveAsFile = saveFile
 
         print("Minimum compliance problem with OC")
         print("ndes: " + str(nelx) + " x " + str(nely))
@@ -109,6 +111,69 @@ class topOpter:
         self.dc = np.ones(nely*nelx)
         self.ce = np.ones(nely*nelx)
 
+        self.obj = 0
+
+        #setup the saving fileSystem
+        if(self.SaveAsFile):
+            workingDirectory = os.getcwd()
+            agentDirectory = os.path.join(workingDirectory,"Agents")
+            dimesionFolder = os.path.join(agentDirectory,"{}_{}".format(nelx,nely))
+            pathExists = os.path.exists(dimesionFolder)
+            if( not pathExists):
+                os.makedirs(dimesionFolder)
+            num = np.random.randint(1,999999)
+            agentFolder = os.path.join(dimesionFolder,"Agent_{}".format(num))
+            pathExists = os.path.exists(agentFolder)
+            if(not pathExists):
+                os.makedirs(agentFolder)
+            else:
+                # if the agent folder currently exist then create an Agent#_ folder
+                foundOpenNumber = False
+                currentNumber = 1
+                while( not foundOpenNumber):
+                    currentAgentN = os.path.join(dimesionFolder,"Agent{}_{}".format(currentNumber,num))
+                    pathExists = os.path.exists(currentAgentN)
+                    if(pathExists):
+                        currentNumber += 1
+                    else:
+                        foundOpenNumber = True
+                os.makedirs(currentAgentN)
+                agentFolder = currentAgentN
+
+            self.folderToSaveTo = agentFolder
+    
+    def saveLoadConditions(self):
+        if(self.SaveAsFile):
+            originalWorkingDirectory = os.getcwd()
+            os.chdir(self.folderToSaveTo)
+            fileNameToSaveAs = "loadConditions.csv"
+            formating_array = np.array([self.volfrac,self.nelx,self.nely])
+            
+            try:
+                np.savez_compressed(fileNameToSaveAs,a=self.f,b=self.free,c=self.passive,d=formating_array)
+            except:
+                print("Something went wrong.")
+                print("Tried to save: {}".format(fileNameToSaveAs))
+            os.chdir(originalWorkingDirectory)
+        else:
+            return
+    
+    def saveIteration(self):
+        if(self.SaveAsFile):
+            originalWorkingDirectory = os.getcwd()
+            os.chdir(self.folderToSaveTo)
+            fileNameToSaveAs = f"iteration_{self.loop}" + ".csv"
+            formating_array = np.array([self.obj,self.change,self.xPhys.sum()])
+            
+            try:
+                np.savez_compressed(fileNameToSaveAs,a=self.x,b=self.xPhys,c=formating_array)
+            except:
+                print("Something went wrong.")
+                print("Tried to save: {}".format(fileNameToSaveAs))
+            os.chdir(originalWorkingDirectory)
+        else:
+            return
+
     def itterate(self):
         canCompute = (self.numberOfForces > 0) and (self.numberOfFixedPoints > 3 )
         if( self.change>0.01 and self.loop<2000 and canCompute):
@@ -155,7 +220,7 @@ class topOpter:
             # Compute the change by the inf. norm
             self.change=np.linalg.norm(self.x.reshape(self.nelx*self.nely,1)-self.xold.reshape(self.nelx*self.nely,1),np.inf)
 
-
+            self.obj = obj
 
             # Write iteration history to screen (req. Python 2.6 or newer)
             print("it.: {0} , obj.: {1:.3f} Vol.: {2:.3f}, ch.: {3:.3f}".format(self.loop,obj,(self.g+self.volfrac*self.nelx*self.nely)/(self.nelx*self.nely),self.change))
@@ -382,3 +447,18 @@ class topOpter:
     def drawPlots(self,arr):
         print("arr1.shape = {}".format(arr.shape))
         l = max(arr.shape)//2
+
+    def ApplyProblem(self, filledArea,supportArea,forceVector):
+        self.passive = (2*filledArea).reshape(self.nelx*self.nely)
+        self.updateFixed(supportArea*3)
+        self.f = forceVector
+        self.numberOfForces = 4
+        self.u=np.zeros((2*(self.nelx+1)*(self.nely+1),4))
+
+    def applyConstraints(self):
+        #reshape x into a 1D array to perform calculations
+        x = np.maximum(0,np.minimum(self.xPhys,1))
+        #Apply the force fill and force free areas
+        x = np.where(self.passive == 1,0,x)
+        x = np.where(self.passive == 2,1,x)
+        self.xPhys = x

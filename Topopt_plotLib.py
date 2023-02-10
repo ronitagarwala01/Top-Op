@@ -8,6 +8,39 @@ from matplotlib.widgets import Slider
 from topopt import topOpter
 from ProblemMapper import*
 
+def randomCircleGenerator():
+    x1 = np.random.random()
+    y1 = np.random.random()
+    r1 = np.random.random()/3
+    f1 = np.random.random()*3
+    a1 = np.random.random()*2*np.pi
+    c1 = [x1,y1,r1,f1,a1]
+    return c1
+
+def generateRandomProblemStatement(nelx,nely):
+    setupTries = 100
+    canSetUp = False
+    for i in range(setupTries):
+        try:                                                                            
+            circle_1 = randomCircleGenerator()
+            circle_2 = randomCircleGenerator()
+            circle_3 = randomCircleGenerator()
+            filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
+        except:
+            canSetUp = False
+        else:
+            canSetUp = True
+            return filledArea,supportArea,forceVector
+    
+    if(canSetUp == False):
+        # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
+        # and the counterclockwise angle of the force in degrees.
+
+        circle_1 = [.15,.15,.1,1,(3/2)*np.pi]
+        circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
+        circle_3 = [.85,.85,.1,1,(3/2)*np.pi]
+        filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
+        return filledArea,supportArea,forceVector
 
 
 def updateImageDropOff(imageArray,val):
@@ -19,26 +52,16 @@ def updateImageDropOff(imageArray,val):
     return above0
 
 
-
-
 # The real main driver    
 if __name__ == "__main__":
     # Default input parameters
-    nelx=50
-    nely=50
+    nelx=30
+    nely=30
     volfrac=0.4
     rmin=5.4
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens
-    # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
-    # and the counterclockwise angle of the force in degrees.
-    circle_1 = [.2,.5,.1,1,(3/2)*np.pi]
-    circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
-    circle_3 = [.8,.5,.1,1,(3/2)*np.pi]
 
-    filledArea,supportArea,forceVector = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
-
-    loads = [circle_1,circle_2,circle_3]
     import sys
     if len(sys.argv)>1: nelx    =int(sys.argv[1])
     if len(sys.argv)>2: nely    =int(sys.argv[2])
@@ -50,21 +73,12 @@ if __name__ == "__main__":
 
 
 
-    t = topOpter(nelx,nely,volfrac,penal,rmin,ft)
-    #t.updateLoads(loads)
-    anchorArray = np.zeros((nelx,nely))
-    anchorArray[1,2] = 3
-    #t.updateFixed(anchorArray)
-    #t.updateForceVectors([[150,10,0,1]])
-    t.passive = (2*filledArea).reshape(nelx*nely)
-    t.updateFixed(supportArea*3)
-    t.f = forceVector
-    t.numberOfForces = 4
-    t.u=np.zeros((2*(nelx+1)*(nely+1),4))
-    
-    
-    
+    t = topOpter(nelx,nely,volfrac,penal,rmin,ft,saveFile=True)
 
+    filledArea,supportArea,forceVector = generateRandomProblemStatement(nelx,nely)
+    t.ApplyProblem(filledArea,supportArea,forceVector)
+    t.saveLoadConditions()
+    
 
     plt.ion() # Ensure that redrawing is possible
     fig,ax = plt.subplots(2,1)
@@ -81,12 +95,15 @@ if __name__ == "__main__":
     )
     prevSliderVal = slider_for_material.val
     im2 = ax[1].imshow(t.getDerivetiveOfSensitivity().T, cmap='plasma_r', interpolation='none',norm=colors.Normalize(vmin=-1,vmax=0))
-    done = False
+    done = True
     while(plt.fignum_exists(fig.number)):
         im1.set_array(updateImageDropOff(-t.getPart().T,slider_for_material.val))
         im2.set_array(t.getDerivetiveOfSensitivity().T)
         fig.canvas.draw()
         fig.canvas.flush_events()
+        if(done):
+            print("save itt")
+            t.saveIteration()
         done = t.itterate()
 
 
