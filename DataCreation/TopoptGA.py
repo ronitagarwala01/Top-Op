@@ -30,13 +30,13 @@ def fitnessFunction(member):
 
 def evaluation(population,topOpt:topOpter):
     memberFitnessValuePair = []
-    penaltyFActor = 2
-    print("Evaluating Population of size {}:".format(len(population)))
+    penaltyFActor = 1
+    print("\tEvaluating Population of size {}:".format(len(population)))
     for i,member in enumerate(population):
-        print("\t{:.2f}%".format(100*(i/len(population))),end ='\r')
+        print("\t{:000d}%".format(int(100*(i/len(population)))),end ='\r')
         fitnessValue = fitnessFunction(member) + penaltyFActor*topOptFitnessFuntion(member,topOpt,np.random.random() < .01)
         memberFitnessValuePair.append(memberAndFitnessPairing(member, fitnessValue))
-    print("\t100%          \nDone.")
+    print("\t100%\tDone.")
     return memberFitnessValuePair
 
 def topOptFitnessFuntion(member,topOpt:topOpter, saveFlag:bool = False):
@@ -52,12 +52,13 @@ def topOptFitnessFuntion(member,topOpt:topOpter, saveFlag:bool = False):
         fileSaver = AgentFileSaver(randint(0,99999),topOpt.nelx,topOpt.nely)
         fileSaver.save_GA_data_compressed(member.astype("int32"),topOpt.f,topOpt.free,compliance,topOpt.complianceMax)
 
-    
+    # if(np.random.randint(1,100) == 1):
+    #     print(compliance,topOpt.complianceMax,compliance > topOpt.complianceMax)
 
     if(compliance > topOpt.complianceMax):
         return topOpt.nelx*topOpt.nely
-
-    return 0
+    else:
+        return 0
 
 
 def applyConstraintsToPopulation(population,topOpt:topOpter):
@@ -85,6 +86,18 @@ def filterPopulationMutation(population,topOpt):
         newPopulation.append(child)
     return newPopulation
 
+def optimizeMutation(population,topOpt:topOpter,frequency:float=0.1):
+    print("\tOptimizing {}% of population".format(int(frequency*100)))
+    newPopulation = []
+    for member in population:
+        if(np.random.random() <= frequency):
+            #print("Memeber: {}".format(len(newPopulation)+1))
+            newmemeber,success = topOpt.OptimizeChunk(member,np.random.randint(0,999),chunkSize=5,cutOff=0.5)
+            if(success != False):
+                newPopulation.append(newmemeber)
+    return newPopulation
+
+
 
 
 def testSave():
@@ -106,9 +119,6 @@ def testSave():
     t.ApplyProblem(filledArea,supportArea,forceVector)
 
     print(topOptFitnessFuntion(m,t,saveFlag=True))
-
-
-
 
 def testLoad():
     agentNUm = 5132
@@ -150,8 +160,8 @@ def randomCircleGenerator():
 
 def main(maxCompliance):
     #start by defining the topopt problem we will solve
-    nelx=30
-    nely=30
+    nelx=50
+    nely=50
     volfrac=0.4
     rmin=1.5
     penal=3.0
@@ -161,16 +171,14 @@ def main(maxCompliance):
     # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
     # and the counterclockwise angle of the force in degrees.
     
-    circle_1 = [.15,.15,.1,1,(3/2)*np.pi]
-    circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
-    circle_3 = [.85,.85,.1,1,(3/2)*np.pi]
     setupTries = 10
     canSetUp = False
     for i in range(setupTries):
-        try:
+        try:                                                                            
             circle_1 = randomCircleGenerator()
             circle_2 = randomCircleGenerator()
             circle_3 = randomCircleGenerator()
+            filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
         except:
             canSetUp = False
         else:
@@ -180,7 +188,7 @@ def main(maxCompliance):
     if(canSetUp == False):
         return
 
-    filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
+    
     t = topOpter(nelx,nely,volfrac,penal,rmin,ft,maxCompliance)
     t.ApplyProblem(filledArea,supportArea,forceVector)
     #t.applyCantileiverSetup()
@@ -201,11 +209,11 @@ def main(maxCompliance):
         fig.show()
 
 
-    numPop = 100
-    numIterations = 50
+    numPop = 50
+    numIterations = 30
 
     newPopulation = generateInitalPopulation(nelx, nely, numPop)
-    clearExessMaterialFromPopulation(newPopulation,minViableArea,0.2)
+    #clearExessMaterialFromPopulation(newPopulation,minViableArea,0.2)
     applyConstraintsToPopulation(newPopulation,t)
 
 
@@ -226,6 +234,8 @@ def main(maxCompliance):
         newCrossedMembers = crossover(toCross,4)
         newMutatedMembers = mutation(toMutate)
         newFilteredMembers = filterPopulationMutation(newPopulation,t)
+        if(x > numIterations//3):
+            newOptimizedPopulation = optimizeMutation(newPopulation,t,1)
 
         for crossed in newCrossedMembers:
             newPopulation.append(crossed)
@@ -236,6 +246,10 @@ def main(maxCompliance):
         for filtered in newFilteredMembers:
             newPopulation.append(filtered)
 
+        if(x > numIterations//3):
+            for optimized in newOptimizedPopulation:
+                newPopulation.append(optimized)
+
         if(np.random.random() < 0.1):
             newPopulation.append(solidMember.copy())
 
@@ -243,10 +257,11 @@ def main(maxCompliance):
 
         # Evaluation
         memberFitnessValuePairs = evaluation(newPopulation,t)
-        print("Avg fitness: ", fitnessAverage(memberFitnessValuePairs, []))
+        print("\tAvg fitness: ", fitnessAverage(memberFitnessValuePairs, []))
 
         # Selection
         sortedPopulation = sortMemberFitnessValuePairs(memberFitnessValuePairs)
+        print("\tBest score: {:.1f}".format(sortedPopulation[0][1]))
 
         if(DisplayFlag):
             #print(sortedPopulation[0])
@@ -263,5 +278,7 @@ def main(maxCompliance):
 
 
 if __name__ == "__main__":
-    for i in range(100):
-        main(randint(10,40))
+    populationLoops = 1000
+    for i in range(populationLoops):
+        print("Population:",i)
+        main(randint(30,100))

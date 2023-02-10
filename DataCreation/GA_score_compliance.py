@@ -2,6 +2,11 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 
+from scipy.optimize import Bounds,LinearConstraint,NonlinearConstraint
+from scipy.optimize import linprog
+
+from tensorflow.keras.layers import AveragePooling2D
+
 
 class topOpter:
     def __init__(self,nelx,nely,volfrac,penal,rmin,ft,complianceConstraint):
@@ -92,7 +97,6 @@ class topOpter:
 
         # Set load
         #self.f[0,0] = -1
-
         
 
     
@@ -113,7 +117,7 @@ class topOpter:
     def sensitivityAnalysis(self,x):
         #reshape x into a 1D array to perform calculations
         x = np.reshape(x,(self.nelx*self.nely))
-        x = np.maximum(0.01,np.minimum(x,1))
+        x = np.maximum(0.001,np.minimum(x,1))
         #Apply the force fill and force free areas
         x = np.where(self.passive == 1,0,x)
         x = np.where(self.passive == 2,1,x)
@@ -150,7 +154,16 @@ class topOpter:
 
     def getCompliance(self,x):
         return self.sensitivityAnalysis(x)[0]
-    
+
+    def Jacobian_Compliance(self,x):
+        """
+        Takes in a numpy array representing the elements in the current part
+        returns the jacobian of the complinace function as a numpy array where each index coresponds to the gradient of the compliance function with resepect to that index of x
+        
+        Work for the function is done in the senstvity analysis but only the derivative of the compliance is passed outside the function
+        """
+        return self.sensitivityAnalysis(x)[1]
+
     def lk(self):
         #element stiffness matrix
         E=1
@@ -331,5 +344,111 @@ class topOpter:
         #print(np.max(xnew),np.min(xnew))
 
         return np.reshape(np.where(xnew < cutoff,0,1),(self.nelx,self.nely))
+
+    def OptimizeChunk(self,xPhys:np.ndarray,location:int,chunkSize:int=10,cutOff:float = 0.5):
+        """
+        This function minimizes the mass of a specified chunk of the given part
+        Uses the scipy.optimize.minmize function
+
+        The function takes:
+        - x: the part it will optimize
+        - location: an integer > 0 representing the random location where the part will be optimized
+        - chunkSize: an integer between 1 and nelx/nely. Represents how large the square 'chunk' of elements will be optimized
+        - cutOff: A float [0,1] representing at what point material will be considered in the part
+
+
+        The function returns:
+            xNew as the new updated values of x
+
+        """
+        #create a new copy of our elements so as to not acidentaly edit them while otimizing
+        xnew=np.reshape(xPhys,(self.nelx*self.nely))
+        move = 1
+
+        #set up the chunk to be minimized
+        sizeOfSubdivision = chunkSize
+        numberOfSubdivision = self.nelx//sizeOfSubdivision
+
+        #check the area of the part with the most material
+        pool2D = AveragePooling2D(pool_size=(chunkSize,chunkSize),strides=(chunkSize,chunkSize),padding='same')
+
+        activityMap = pool2D(np.reshape(xPhys,(1,self.nelx,self.nely,1)).astype('float32'))
+        newShape = activityMap.shape[1]*activityMap.shape[2]
+
+        activeValues = np.reshape(np.asarray(activityMap),(newShape))
+        #remove all ones from the map as that indicates a completely full(support) area
+        activeValues = np.where(activeValues == 1,0,activeValues)
+
+        #find the number of zeros
+        numZeros = len(activeValues) - len(activeValues[activeValues != 0])
+        #arg sort the array to get the indexes of the sorted values then drop the fir
+        indexes = np.argsort(activeValues)[numZeros:]
+        if(len(indexes) <= 1):
+            return xPhys,False
+
+        #build a binary choise array filled with values starting at 0.5 and decreaseing by half each index
+        binaryChoice = np.zeros((len(indexes)),dtype='float32')
+        n = len(binaryChoice)
+        for i in range(1,n+1):
+            binaryChoice[n-i] = 1/(2**(i))
+        
+        #add the remainder value to the last index to ensure the sum of the array is one
+        binaryChoice[0] += 1/(2**(n))
+
+        l1 = np.random.choice(indexes,p=binaryChoice)
+
+        x_coordinate = l1%numberOfSubdivision
+        y_coordinate = l1//numberOfSubdivision
+
+        move = np.zeros((self.nelx,self.nely))
+
+        for x in range(x_coordinate*sizeOfSubdivision,(x_coordinate+1)*sizeOfSubdivision):
+            for y in range(y_coordinate*sizeOfSubdivision,(y_coordinate+1)*sizeOfSubdivision):
+                if(x < self.nelx and y < self.nely):
+                    move[x,y] = self.maxElementChange
+        move = np.reshape(move,(self.nelx*self.nely))
+
+
+        ce,dc,_,_,_,_ = self.sensitivityAnalysis(xPhys)
+        offset = (dc*xnew).sum()
+        numberOfElements = len(xnew)
+
+        b = np.array([self.complianceMax - ce + offset])
+        c = np.ones(numberOfElements)
+
+        A = np.zeros((1,len(dc)))
+        A[0,:] = dc#work dc into a technically 2d array
+        
+        #define bouds of x to be within move distance
+        x_lowerBound = np.maximum(0,xnew - move*np.ones(len(xnew)))
+        x_lowerBound = np.where(self.passive == 1, 1, x_lowerBound)
+        x_upperBound = np.minimum(1,xnew + move*np.ones(len(xnew)))
+        x_upperBound = np.where(self.passive == 1, 1, x_upperBound)
+        bounds = (np.array((x_lowerBound,x_upperBound))).T
+
+        #create the minimization problem
+        res = linprog(
+            c = c,
+            A_ub = A,
+            b_ub = b,
+            bounds = bounds,
+            x0 = xnew)
+
+        if(not res.success):
+            #self.printResults(res)
+            #print(np.array([x_lowerBound,x_upperBound]).T)
+            return xPhys,False
+
+        xnew = res.x
+
+        #do the passives
+        xnew = np.where(self.passive == 1, 0, xnew)
+        xnew = np.where(self.passive == 2, 1, xnew)
+            
+        return self.blurFilterCutoff(xnew,cutOff),True
+
+
+
+
 
 

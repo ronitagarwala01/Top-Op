@@ -116,6 +116,23 @@ def shouldSelect(member):
 
     return choice
 
+def removeDuplicateMembers(sortedParis):
+    i = 0
+    while(i < len(sortedParis)):
+        toRemove = []
+        j=i+1
+        while (j < len(sortedParis)):
+            #first compare the compliances
+            if(sortedParis[i][1] == sortedParis[j][1]):
+                # if the compliance is the same, check the arrays
+                if(np.array_equal(sortedParis[i][0],sortedParis[j][0])):
+                    sortedParis.pop(j)
+                    j -= 1
+            j += 1
+        
+        i += 1
+
+
 
 def selection(sortedPairs, popuationSize, percentElite):
     """
@@ -128,6 +145,7 @@ def selection(sortedPairs, popuationSize, percentElite):
     """
     numToSelect = popuationSize
     numElite = int(np.ceil(popuationSize * percentElite))
+    removeDuplicateMembers(sortedPairs)
 
     if len(sortedPairs) <= 4:
         return sortedPairs
@@ -331,10 +349,12 @@ def mutation(newGeneration):
     mutatedPopulation = []
 
     for member in newGeneration:
-        materialToAdd = np.random.random()/5 # value from [0,0.2)
+        materialToAdd = np.random.random() # value from [0,1)
+
         #Generate 2 members one with added material, one with removed material
         mutatedMember = mutateMember(member,materialToAdd,1)
         mutatedPopulation.append(mutatedMember)
+        
         mutatedMember = mutateMember(member,materialToAdd,0)
         mutatedPopulation.append(mutatedMember)
 

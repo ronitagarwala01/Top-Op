@@ -43,7 +43,7 @@ def generateCircles(x:int,y:int,circlesArray,radiusScallingAxes:str="x",correctE
             
             if(c1_x - c1_r < 0):
                 if(xCorrectionMade):
-                    raise("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
+                    raise Exception("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
                 else:
                     circlesArray[i][0] =  c1_r/x
                     print("Shift {} right to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x - c1_r,0))
