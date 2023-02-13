@@ -12,10 +12,34 @@ def randomCircleGenerator():
     x1 = np.random.random()
     y1 = np.random.random()
     r1 = np.random.random()/3
+    if(r1 <= 0.05):
+        r1 = 0.1
     f1 = np.random.random()*3
     a1 = np.random.random()*2*np.pi
     c1 = [x1,y1,r1,f1,a1]
     return c1
+
+def forceEquilizer(circle_1,circle_2):
+    #[x1,y1,r1,f1,a1]
+    fx = circle_1[3]*np.cos(circle_1[4]) + circle_2[3]*np.cos(circle_2[4])
+    fy = circle_1[3]*np.sin(circle_1[4]) + circle_2[3]*np.sin(circle_2[4])
+
+    counterForce_x = -fx
+    counterForce_y = -fy
+
+    magnitude = np.linalg.norm([counterForce_x,counterForce_y],ord=2)
+    angle = np.arctan2(counterForce_y,counterForce_x)
+
+    x1 = np.random.random()
+    y1 = np.random.random()
+    r1 = np.random.random()/3
+    if(r1 <= 0.05):
+        r1 = 0.1
+
+    c1 = [x1,y1,r1,magnitude,angle]
+    return c1
+
+
 
 def generateRandomProblemStatement(nelx,nely):
     setupTries = 100
@@ -24,13 +48,15 @@ def generateRandomProblemStatement(nelx,nely):
         try:                                                                            
             circle_1 = randomCircleGenerator()
             circle_2 = randomCircleGenerator()
-            circle_3 = randomCircleGenerator()
+            circle_3 = forceEquilizer(circle_1,circle_2)
             filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
-        except:
+            #filledArea2,supportArea2,forceVector2,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y",correctError=False)
+        except Exception as e:
+            #print(e)
             canSetUp = False
         else:
             canSetUp = True
-            return filledArea,supportArea,forceVector
+            return filledArea,supportArea,forceVector#,filledArea2,supportArea2,forceVector2
     
     if(canSetUp == False):
         # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
@@ -51,12 +77,10 @@ def updateImageDropOff(imageArray,val):
 
     return above0
 
-
-# The real main driver    
-if __name__ == "__main__":
+def runTopOpt():
     # Default input parameters
-    nelx=30
-    nely=30
+    nelx=50
+    nely=50
     volfrac=0.4
     rmin=5.4
     penal=3.0
@@ -73,7 +97,7 @@ if __name__ == "__main__":
 
 
 
-    t = topOpter(nelx,nely,volfrac,penal,rmin,ft,saveFile=True)
+    t = topOpter(nelx,nely,volfrac,penal,rmin,ft,saveFile=False)
 
     filledArea,supportArea,forceVector = generateRandomProblemStatement(nelx,nely)
     t.ApplyProblem(filledArea,supportArea,forceVector)
@@ -102,8 +126,47 @@ if __name__ == "__main__":
         fig.canvas.draw()
         fig.canvas.flush_events()
         if(done):
-            print("save itt")
+            #print("save itt")
             t.saveIteration()
         done = t.itterate()
+
+def testProblemMap():
+    nelx = 100 
+    nely = 100
+    filledArea,supportArea,forceVector = generateRandomProblemStatement(nelx,nely)
+
+    #print(filledArea.shape)
+    #print(supportArea.shape)
+    #print(forceVector.shape)
+
+    #format the forces
+    fTotal = forceVector.sum(1)
+
+
+    fx = fTotal[0:len(fTotal):2]
+    fy = fTotal[1:len(fTotal):2]
+
+    fx = np.reshape(fx,(nelx+1,nely+1))
+    fy = np.reshape(fy,(nelx+1,nely+1))
+
+    #print(fx.shape)
+    #print(fy.shape)
+
+    if(True):
+        fig,ax = plt.subplots(2,2)
+
+        im1 = ax[0,0].imshow(filledArea, cmap='gray_r')
+        im2 = ax[0,1].imshow(supportArea, cmap='gray_r')
+
+
+        im3 = ax[1,0].imshow(fx, cmap='plasma')
+        im4 = ax[1,1].imshow(fy, cmap='plasma')
+        plt.show()
+
+
+# The real main driver    
+if __name__ == "__main__":
+    runTopOpt()
+    #testProblemMap()
 
 

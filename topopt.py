@@ -15,6 +15,8 @@ class topOpter:
         self.ft = ft
 
         self.SaveAsFile = saveFile
+        self.isError = False
+        self.errorMarked = False
 
         print("Minimum compliance problem with OC")
         print("ndes: " + str(nelx) + " x " + str(nely))
@@ -159,7 +161,7 @@ class topOpter:
             return
     
     def saveIteration(self):
-        if(self.SaveAsFile):
+        if(self.SaveAsFile and not self.isError):
             originalWorkingDirectory = os.getcwd()
             os.chdir(self.folderToSaveTo)
             fileNameToSaveAs = f"iteration_{self.loop}" + ".csv"
@@ -171,8 +173,22 @@ class topOpter:
                 print("Something went wrong.")
                 print("Tried to save: {}".format(fileNameToSaveAs))
             os.chdir(originalWorkingDirectory)
-        else:
-            return
+        elif(self.isError and not self.errorMarked):
+            #Mark that the solution is invalid thus should not be used
+            originalWorkingDirectory = os.getcwd()
+            os.chdir(self.folderToSaveTo)
+
+            filesInDirectory = os.listdir()
+
+            for file in filesInDirectory:
+                os.rename(file,str("Invalid_" + file))
+
+
+
+            os.chdir(originalWorkingDirectory)
+            self.errorMarked = True
+
+            
 
     def itterate(self):
         canCompute = (self.numberOfForces > 0) and (self.numberOfFixedPoints > 3 )
@@ -298,6 +314,7 @@ class topOpter:
                 l2=lmid
             if(l1+l2 == 0):
                 print("would have been an error")
+                self.isError = True
                 break
         return (xnew,gt)
 
