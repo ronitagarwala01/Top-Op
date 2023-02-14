@@ -11,10 +11,12 @@ def unpackLoadCondtions(loadConditions):
     volfrac = formating_array[0]
     nelx = int(formating_array[1])
     nely = int(formating_array[2])
+    penal = formating_array[3]
+    rmin = formating_array[4]
 
     #print(volfrac,nelx,nely)
 
-    return forces,free,passive,volfrac,nelx,nely
+    return forces,free,passive,volfrac,nelx,nely,penal,rmin
 
 
 def unpackIteration(iteration):
@@ -59,7 +61,7 @@ def main():
     iterations.sort(key=sortKey)
     #print(iterations)
 
-    forces,free,passive,volfrac,nelx,nely = unpackLoadCondtions(loadConditions)
+    forces,free,passive,volfrac,nelx,nely,penal,rmin = unpackLoadCondtions(loadConditions)
 
     x_array = []
     xPhys_array = []
@@ -84,3 +86,6 @@ def main():
 
 if(__name__ == "__main__"):
     main()  
+
+
+

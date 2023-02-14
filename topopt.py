@@ -117,7 +117,7 @@ class topOpter:
 
         #setup the saving fileSystem
         if(self.SaveAsFile):
-            workingDirectory = r"E:\TopoptGAfileSaves\ComplianceMinimization"#os.getcwd()
+            workingDirectory = os.getcwd()
             agentDirectory = os.path.join(workingDirectory,"Agents")
             dimesionFolder = os.path.join(agentDirectory,"{}_{}".format(nelx,nely))
             pathExists = os.path.exists(dimesionFolder)
