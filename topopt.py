@@ -117,7 +117,7 @@ class topOpter:
 
         #setup the saving fileSystem
         if(self.SaveAsFile):
-            workingDirectory = os.getcwd()
+            workingDirectory = r"E:\TopoptGAfileSaves\ComplianceMinimization"#os.getcwd()
             agentDirectory = os.path.join(workingDirectory,"Agents")
             dimesionFolder = os.path.join(agentDirectory,"{}_{}".format(nelx,nely))
             pathExists = os.path.exists(dimesionFolder)
@@ -149,7 +149,7 @@ class topOpter:
             originalWorkingDirectory = os.getcwd()
             os.chdir(self.folderToSaveTo)
             fileNameToSaveAs = "loadConditions.csv"
-            formating_array = np.array([self.volfrac,self.nelx,self.nely])
+            formating_array = np.array([self.volfrac,self.nelx,self.nely,self.penal,self.rmin])
             
             try:
                 np.savez_compressed(fileNameToSaveAs,a=self.f,b=self.free,c=self.passive,d=formating_array)

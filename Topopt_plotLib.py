@@ -79,20 +79,20 @@ def updateImageDropOff(imageArray,val):
 
 def runTopOpt():
     # Default input parameters
-    nelx=50
+    nelx=100
     nely=50
     volfrac=0.4
     rmin=5.4
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens
 
-    import sys
-    if len(sys.argv)>1: nelx    =int(sys.argv[1])
-    if len(sys.argv)>2: nely    =int(sys.argv[2])
-    if len(sys.argv)>3: volfrac =float(sys.argv[3])
-    if len(sys.argv)>4: rmin    =float(sys.argv[4])
-    if len(sys.argv)>5: penal   =float(sys.argv[5])
-    if len(sys.argv)>6: ft      =int(sys.argv[6])
+    # import sys
+    # if len(sys.argv)>1: nelx    =int(sys.argv[1])
+    # if len(sys.argv)>2: nely    =int(sys.argv[2])
+    # if len(sys.argv)>3: volfrac =float(sys.argv[3])
+    # if len(sys.argv)>4: rmin    =float(sys.argv[4])
+    # if len(sys.argv)>5: penal   =float(sys.argv[5])
+    # if len(sys.argv)>6: ft      =int(sys.argv[6])
     #print(loads)
 
 
@@ -131,13 +131,13 @@ def runTopOpt():
         done = t.itterate()
 
 def testProblemMap():
-    nelx = 100 
-    nely = 100
+    nelx = 160 
+    nely = 80
     filledArea,supportArea,forceVector = generateRandomProblemStatement(nelx,nely)
 
-    #print(filledArea.shape)
-    #print(supportArea.shape)
-    #print(forceVector.shape)
+    print(filledArea.shape)
+    print(supportArea.shape)
+    print(forceVector.shape)
 
     #format the forces
     fTotal = forceVector.sum(1)
@@ -149,24 +149,58 @@ def testProblemMap():
     fx = np.reshape(fx,(nelx+1,nely+1))
     fy = np.reshape(fy,(nelx+1,nely+1))
 
-    #print(fx.shape)
-    #print(fy.shape)
+    print(fx.shape)
+    print(fy.shape)
 
     if(True):
         fig,ax = plt.subplots(2,2)
 
-        im1 = ax[0,0].imshow(filledArea, cmap='gray_r')
-        im2 = ax[0,1].imshow(supportArea, cmap='gray_r')
+        im1 = ax[0,0].imshow(filledArea.T, cmap='gray_r')
+        im2 = ax[0,1].imshow(supportArea.T, cmap='gray_r')
 
 
-        im3 = ax[1,0].imshow(fx, cmap='plasma')
-        im4 = ax[1,1].imshow(fy, cmap='plasma')
+        im3 = ax[1,0].imshow(fx.T, cmap='plasma')
+        im4 = ax[1,1].imshow(fy.T, cmap='plasma')
         plt.show()
+
+def runTopOpt_SaveData():
+    # Default input parameters
+    nelx=100
+    nely=50
+    volfrac= np.random.random()*.6 + 0.3 #value between .3 and .9
+    rmin=5.4
+    penal=3.0
+    ft=0 # ft==0 -> sens, ft==1 -> dens
+
+    # import sys
+    # if len(sys.argv)>1: nelx    =int(sys.argv[1])
+    # if len(sys.argv)>2: nely    =int(sys.argv[2])
+    # if len(sys.argv)>3: volfrac =float(sys.argv[3])
+    # if len(sys.argv)>4: rmin    =float(sys.argv[4])
+    # if len(sys.argv)>5: penal   =float(sys.argv[5])
+    # if len(sys.argv)>6: ft      =int(sys.argv[6])
+    #print(loads)
+
+    
+
+    t = topOpter(nelx,nely,volfrac,penal,rmin,ft,saveFile=True)
+
+    filledArea,supportArea,forceVector = generateRandomProblemStatement(nelx,nely)
+    t.ApplyProblem(filledArea,supportArea,forceVector)
+    t.saveLoadConditions()
+    
+ 
+    done = True
+    while(done):
+        t.saveIteration()
+        done = t.itterate()
 
 
 # The real main driver    
 if __name__ == "__main__":
-    runTopOpt()
+    for i in range(10000):
+        print("\tCurrent Problem = {}".format(i))
+        runTopOpt_SaveData()
     #testProblemMap()
 
 
