@@ -1,10 +1,14 @@
 from fenics import *
 from ufl import nabla_div
+import ufl as ufl
 from fenics_adjoint import *
 import numpy as np
+import math
 
-# L = 1.0                                         # Length
-# W = 1.0                                         # Width
+
+import petsc4py
+petsc4py.init()
+from petsc4py import PETSc
 
 
 # Everything below, should be static
@@ -19,6 +23,8 @@ G = E / (2.0*(1.0 + nu))                        # Lame's second parameter / Shea
 q = -5000000.0
 f = Constant((0.0, q))
 
+nelx, nely = 15, 30
+
 
 def calcRatio(a, b):
     gcd = np.gcd(a, b)
@@ -28,35 +34,22 @@ def calcRatio(a, b):
     
     return aReduced, bReduced
 
-def solveConstraints(nelx, nely, solution):
+L, W = calcRatio(nelx, nely) # Length, Width
 
-    L, W = calcRatio(nelx, nely) # Length, Width
+# Define mesh
+mesh = RectangleMesh(Point(0.0, 0.0), Point(L, W), nelx - 1, nely - 1)
 
-    # Define mesh
-    mesh = RectangleMesh(Point(0.0, 0.0), Point(L, W), nelx, nely)
+# Define Function Spaces
+U = VectorFunctionSpace(mesh, "Lagrange", 1) # Displacement Function Space
+X = FunctionSpace(mesh, "Lagrange", 1)       # Density Function Space
 
-    # Define Function Spaces
-    U = VectorFunctionSpace(mesh, "Lagrange", 1) # Displacement Function Space
-    X = FunctionSpace(mesh, "Lagrange", 1)       # Density Function Space
+# Dirichlet BC em x[0] = 0
+def Left_boundary(x, on_boundary):
+    return on_boundary and abs(x[0]) < DOLFIN_EPS
 
-    x = Function(X)
-    # This does not work
-    x.vector() = solution
+u_L = Constant((0.0, 0.0))
+bc = DirichletBC(U, u_L, Left_boundary)
 
-    u_L = Constant((0.0, 0.0))
-    bc = DirichletBC(U, u_L, Left_boundary)
-
-    u = forward(x, U)
-
-    stress = sigma(u)
-
-    compliance = assemble(dot(b, u)*dx + Constant(1.0e-8)*dot(grad(x_in),grad(x_in))*dx)
-
-    return stress, compliance
-
-# SIMP Function
-def simp(x):
-    return eps + (1 - eps) * x**p
 
 # Calculate Strain from Displacements
 def strain(u):
@@ -66,21 +59,41 @@ def strain(u):
 def sigma(u):
     return lmbda*nabla_div(u)*Identity(2) + 2*G*strain(u)
 
+# Calculate Von Mises Stress
+def von_mises(u):
+    s = sigma(u) - (1./3)*tr(sigma(u))*Identity(2)  # deviatoric stress
+    return sqrt(3./2*inner(s, s))
 
-# Dirichlet BC em x[0] = 0
-def Left_boundary(x, on_boundary):
-    return on_boundary and abs(x[0]) < DOLFIN_EPS
+
+def solveConstraints(solution):
+    x = Function(X)
+    solution = solution.flatten()
+    x.vector()[:] = solution[vertex_to_dof_map(X)]
+
+    u = forward(x, U, bc)
+
+    stress = von_mises(u)
+
+    vm = project(von_mises(u), X)
+
+    stress = vm.vector()[:]
+    compliance = assemble(dot(f, u)*dx)
+
+
+    return stress, compliance
+
 
 # Forward problem solution. Solves for displacement u given density x.
-def forward(x, U):
-    u = TrialFunction(U)  ## Trial and test functions
-    w = TestFunction(U)
-
-    sigma = lmbda*tr(sym(grad(u)))*Identity(2) + 2*G*sym(grad(u)) ## Stress
-    F = simp(x)*inner(sigma, grad(w))*dx - dot(f, w)*dx
-
-    a, L = lhs(F), rhs(F)
+def forward(x, U, bc):
+    # rho = helmholtz_filter(x, 0.05)
+    u = TrialFunction(U)  # Trial Function
+    v = TestFunction(U)   # Test Function
+    
+    # a = rho*inner(sigma(u), strain(v))*dx
+    a = x*inner(sigma(u), strain(v))*dx
+    L = dot(f, v)*dx
     u = Function(U)
+    
     solve(a == L, u, bc)
-
-    return u
+    
+    return u  
