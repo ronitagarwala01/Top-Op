@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import colors
 import os
 
 def unpackLoadCondtions(loadConditions):
@@ -66,8 +67,8 @@ def cleanData(path):
         
 
 def main():
-    agentName = "Agent_432253"
-    agentFileToGet = os.path.join(os.getcwd(),"Agents","30_30",agentName)
+    agentName = "Agent_344"
+    agentFileToGet = os.path.join(os.getcwd(),"MachineLerning","Data","100_50",agentName)
 
     FilesToGrab = os.listdir(agentFileToGet)
     numberOfIterations = len(FilesToGrab) - 1
@@ -110,6 +111,16 @@ def main():
         mass_array.append(mass)
 
 
+    fig,ax = plt.subplots(2,2)
+    im1 = ax[0,0].imshow(np.reshape(xPhys_array[0],(nelx,nely)).T, cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+    im2 = ax[0,1].imshow(np.reshape(xPhys_array[1],(nelx,nely)).T, cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+    
+    im3 = ax[1,0].imshow(np.reshape(xPhys_array[-1],(nelx,nely)).T, cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+    im4 = ax[1,1].imshow(np.reshape(xPhys_array[-2],(nelx,nely)).T, cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+
+    plt.show()
+
+
     
 
 
@@ -117,8 +128,10 @@ def main():
 
 
 if(__name__ == "__main__"):
-    AgentFolder = os.path.join(os.getcwd(),'MachineLerning','Data','100_50')
-    cleanData(AgentFolder)  
+    #AgentFolder = os.path.join(os.getcwd(),'MachineLerning','Data','100_50')
+    #cleanData(AgentFolder)  
+
+    main()
 
 
 

@@ -23,8 +23,8 @@ The data created by the TopOpt contains the following information for the initia
 The Data for each iteration is as follows:
     - x: the current part 
     - xPhys:  the current part after filtering
+        - The first xPhys will just be a solid block of volfrac
     - compliance: the compliance of xphys
-        - Due to a technicallity in the code this is actually the compliance of the previous xPhys and not the current part
     - change: the recorded change between the previous and current xphys
     - mass: the current mass of xphys
         - Since the compliance minimization is set with a volume constraint then this value should not change
