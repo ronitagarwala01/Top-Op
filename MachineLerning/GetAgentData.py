@@ -31,7 +31,39 @@ def unpackIteration(iteration):
     #print(compliance,change,mass)
     return x,xPhys,compliance,change,mass
 
+def cleanData(path):
+    """
+    The data set was generatied via the compliance minmization TopOpt, this method was prone to some numerical instabilities thus some data points are marked as invalid.
+    This function will remove them.
+    """
 
+    AgentsToGrab = os.listdir(path)
+    print("There are {} files to explore.".format(len(AgentsToGrab)))
+
+    invalidAgents = []
+
+    for agent in AgentsToGrab:
+        agentFiles = os.listdir(os.path.join(path,agent))
+        for fileName in agentFiles:
+            if('Invalid_' in fileName):
+                invalidAgents.append(agent)
+                break
+        
+    print("Of the {} files scanned {} were invalid.".format(len(AgentsToGrab),len(invalidAgents)))
+
+    for agent in invalidAgents:
+        agentFiles = os.listdir(os.path.join(path,agent))
+        for fileName in agentFiles:
+            fileToRemove = os.path.join(path,agent,fileName)
+            print("removing: {}".format(fileToRemove))
+            os.remove(os.path.join(path,agent,fileName))
+        directoryToRemove = os.path.join(path,agent)
+        print("removing: {}\n".format(directoryToRemove))
+        os.rmdir(os.path.join(path,agent))
+
+
+        
+        
 
 def main():
     agentName = "Agent_432253"
@@ -85,7 +117,8 @@ def main():
 
 
 if(__name__ == "__main__"):
-    main()  
+    AgentFolder = os.path.join(os.getcwd(),'MachineLerning','Data','100_50')
+    cleanData(AgentFolder)  
 
 
 
