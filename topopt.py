@@ -118,7 +118,7 @@ class topOpter:
         #setup the saving fileSystem
         if(self.SaveAsFile):
             workingDirectory = os.getcwd()
-            agentDirectory = os.path.join(workingDirectory,"Agents")
+            agentDirectory = os.path.join(workingDirectory,"MachineLerning","Data")
             dimesionFolder = os.path.join(agentDirectory,"{}_{}".format(nelx,nely))
             pathExists = os.path.exists(dimesionFolder)
             if( not pathExists):
