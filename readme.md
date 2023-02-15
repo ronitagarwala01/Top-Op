@@ -28,4 +28,10 @@ The Data for each iteration is as follows:
     - change: the recorded change between the previous and current xphys
     - mass: the current mass of xphys
         - Since the compliance minimization is set with a volume constraint then this value should not change
-    
+
+
+The models are mad inside the models notebook
+
+The data is generated from the modified topopt_plotlib.py where it has been changed to generate random 'psuedo' problem statements and save each iteration as mentioned above
+
+Model check points are saved in the designated folder. Work has been put into ensuring an easy creation and training of multiple different model types. Extra work will be needed if the data format for a model changes
