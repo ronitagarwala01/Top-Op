@@ -165,9 +165,9 @@ def testProblemMap():
 
 def runTopOpt_SaveData():
     # Default input parameters
-    nelx=100
-    nely=50
-    volfrac= np.random.random()*.6 + 0.3 #value between .3 and .9
+    nelx=30
+    nely=15
+    volfrac= np.random.random()*.5 + 0.3 #value between .3 and .8
     rmin=5.4
     penal=3.0
     ft=0 # ft==0 -> sens, ft==1 -> dens
@@ -190,10 +190,10 @@ def runTopOpt_SaveData():
     t.saveLoadConditions()
     
  
-    done = True
-    while(done):
+    for i in range(3):
         t.saveIteration()
-        done = t.itterate()
+        if(i<2):
+            done = t.itterate()
 
 
 # The real main driver    
