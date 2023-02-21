@@ -115,7 +115,7 @@ def von_mises(u):
     von_Mises = sqrt(3./2*inner(s, s))
     u, v = TrialFunction(VDG), TestFunction(VDG)
     a = inner(u, v)*dx
-    L = inner(von_Mises, v)*dx(0)# + inner(von_Mises, v)*dx(4)
+    L = inner(von_Mises, v)*dx(0) + inner(von_Mises, v)*dx(4)
     stress = Function(VDG)
     solve(a==L, stress)
     return stress
@@ -132,7 +132,7 @@ def helmholtz_filter(rho_n):
       rho = TrialFunction(V)
       w = TestFunction(V)
 
-      a = (r**2)*inner(grad(rho), grad(w))*dx(0) + rho*w*dx# + (r**2)*inner(grad(rho), grad(w))*dx(4) + rho*w*dx
+      a = (r**2)*inner(grad(rho), grad(w))*dx(0) + (r**2)*inner(grad(rho), grad(w))*dx(4) + rho*w*dx
       L = rho_n*w*dx
 
       A, b = assemble_system(a, L)
