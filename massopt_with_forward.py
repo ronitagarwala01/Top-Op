@@ -232,22 +232,12 @@ if __name__ == "__main__":
             return [s_current]
 
         def jacobian(self, m):
-            self.temp_x.vector()[:] = m
-            self.u = forward(self.temp_x)
-            J_stress = assemble(((((von_mises(self.u))*(self.temp_x**self.q))/self.S)**self.p_norm)*dx)
+            temp_x = Function(X)
+            temp_x.vector()[:] = m
+            self.u = forward(temp_x)
+            J_stress = assemble(((((von_mises(self.u))*(temp_x**self.q))/self.S)**self.p_norm)*dx)
             print("J_Stress: ", J_stress)
-            m_stress = Control(self.temp_x)
-
-            # Test for compute_gradient() with self.temp_x
-            print()
-            print()
-            test = assemble(self.temp_x*self.temp_x*dx)
-            dJ_test = compute_gradient(test, m_stress)
-            print("self.temp_x value is: ", self.temp_x.vector()[:])
-            print("Test derivative value is: ", dJ_test.vector()[:])
-            print()
-            print()
-            
+            m_stress = Control(temp_x)
             dJ_stress = compute_gradient(J_stress, m_stress)
             print("Derivative: ", dJ_stress.vector()[:])
             dJ_stress.vector()[:] = np.multiply((1.0/self.p_norm) * np.power(J_stress, ((1.0/self.p_norm)-1.0)), dJ_stress.vector()[:])
