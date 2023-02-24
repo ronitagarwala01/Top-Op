@@ -184,7 +184,9 @@ if __name__ == "__main__":
             self.temp_x = Function(X)
 
         def function(self, m):
-            c_current = assemble(dot(f, Control(u).tape_value())*dx) # Uses the value of u stored in the dolfin adjoint tape
+            self.temp_x.vector()[:] = m
+            self.u = forward(self.temp_x)
+            c_current = assemble(dot(f, self.u)*dx) # Uses the value of u stored in the dolfin adjoint tape
             if MPI.rank(MPI.comm_world) == 0:
                 print("Current compliance: ", c_current)
             
@@ -220,7 +222,8 @@ if __name__ == "__main__":
         def function(self, m):
             self.temp_x.vector()[:] = m
             print("Current control vector (density): ", self.temp_x.vector()[:])
-            integral = assemble((((Control(vm).tape_value()*(Control(x).tape_value()**self.q))/self.S)**self.p_norm)*dx)
+            self.u = forward(self.temp_x)
+            integral = assemble((((von_mises(self.u)*(self.temp_x**self.q))/self.S)**self.p_norm)*dx)
             s_current = 1.0 - (integral ** (1.0/self.p_norm))
             if MPI.rank(MPI.comm_world) == 0:
                 print("Current stress integral: ", integral)
@@ -234,6 +237,17 @@ if __name__ == "__main__":
             J_stress = assemble(((((von_mises(self.u))*(self.temp_x**self.q))/self.S)**self.p_norm)*dx)
             print("J_Stress: ", J_stress)
             m_stress = Control(self.temp_x)
+
+            # Test for compute_gradient() with self.temp_x
+            print()
+            print()
+            test = assemble(self.temp_x*self.temp_x*dx)
+            dJ_test = compute_gradient(test, m_stress)
+            print("self.temp_x value is: ", self.temp_x.vector()[:])
+            print("Test derivative value is: ", dJ_test.vector()[:])
+            print()
+            print()
+            
             dJ_stress = compute_gradient(J_stress, m_stress)
             print("Derivative: ", dJ_stress.vector()[:])
             dJ_stress.vector()[:] = np.multiply((1.0/self.p_norm) * np.power(J_stress, ((1.0/self.p_norm)-1.0)), dJ_stress.vector()[:])
@@ -279,7 +293,7 @@ if __name__ == "__main__":
     #         return 1
 
 
-    problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q, p_norm)])
+    problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [StressConstraint(S_max, q, p_norm)])
     parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 300}
 
     solver = IPOPTSolver(problem, parameters=parameters)
