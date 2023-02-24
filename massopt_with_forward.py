@@ -283,7 +283,7 @@ if __name__ == "__main__":
     #         return 1
 
 
-    problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [StressConstraint(S_max, q, p_norm)])
+    problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q, p_norm)])
     parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 300}
 
     solver = IPOPTSolver(problem, parameters=parameters)
