@@ -45,6 +45,7 @@ def generateRandomProblemStatement(nelx,nely):
     setupTries = 100
     canSetUp = False
     for i in range(setupTries):
+        break
         try:                                                                            
             circle_1 = randomCircleGenerator()
             circle_2 = randomCircleGenerator()
@@ -165,8 +166,8 @@ def testProblemMap():
 
 def runTopOpt_SaveData():
     # Default input parameters
-    nelx=30
-    nely=15
+    nelx=100
+    nely=50
     volfrac= np.random.random()*.5 + 0.3 #value between .3 and .8
     rmin=5.4
     penal=3.0
@@ -189,16 +190,15 @@ def runTopOpt_SaveData():
     t.ApplyProblem(filledArea,supportArea,forceVector)
     t.saveLoadConditions()
     
- 
-    for i in range(3):
+    optimizing = True
+    while(optimizing):
         t.saveIteration()
-        if(i<2):
-            done = t.itterate()
+        optimizing = t.itterate()
 
 
 # The real main driver    
 if __name__ == "__main__":
-    for i in range(10000):
+    for i in range(1):
         print("\tCurrent Problem = {}".format(i))
         runTopOpt_SaveData()
     #testProblemMap()
