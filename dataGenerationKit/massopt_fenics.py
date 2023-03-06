@@ -2,33 +2,25 @@ import numpy as np
 import math
 from fenics import *
 from dolfin import *
-# from mshr import *
 import ufl as ufl
 from ufl import nabla_div
 from fenics_adjoint import *
 from pyadjoint import ipopt
 
-from problemStatementGenerator import *
-
-
 def fenicsOptimizer(problemConditions):
-
     circle_coords = problemConditions[0]
     radii = problemConditions[1]
     loads = problemConditions[2]
 
-    nelx = problemConditions[3]                                   # Number of elements in x-direction
-    nely = problemConditions[4]                             # Number of elements in y-direction
-    nelz = 25                                       # Number of elements in z-direction
-    Y = Constant(problemConditions[5])                           # Young Modulus
-    C_max = Constant(problemConditions[6])                          # Max Compliance
-    S_max = Constant(problemConditions[7])                        # Max Stress
+    nelx = problemConditions[3]
+    nely = problemConditions[4]
+    nelz = 25
+    Y = Constant(problemConditions[5])
+    C_max = Constant(problemConditions[6])
+    S_max = Constant(problemConditions[7])
     
     L, W = calcRatio(nelx, nely)
-    
 
-    # turn off redundant output in parallel
-    # parameters["std_out_all_processes"] = False
 
     D = 0.5                                         # Depth
     p = Constant(5.0)                               # Penalization Factor for SIMP
@@ -61,6 +53,10 @@ def fenicsOptimizer(problemConditions):
     circle_1.mark(domains, 1)
     circle_2.mark(domains, 2)
     circle_3.mark(domains, 3)
+
+    d1 = np.count_nonzero(domains.array() == 1)
+    d2 = np.count_nonzero(domains.array() == 2)
+    d3 = np.count_nonzero(domains.array() == 3)
     
     # Define new measures associated with the interior domains
     dx = Measure('dx', domain = mesh, subdomain_data = domains)
@@ -122,14 +118,14 @@ def fenicsOptimizer(problemConditions):
         # Generate Load Function over mesh
         for i in range(f_.shape[0]):
             if domains.array()[i] == 1:
-                f.vector().vec().setValueLocal(2*i, F_new[0][0])
-                f.vector().vec().setValueLocal(2*i+1, F_new[1][0])
+                f.vector().vec().setValueLocal(2*i, F_new[0][0] / d1)
+                f.vector().vec().setValueLocal(2*i+1, F_new[1][0] / d1)
             elif domains.array()[i] == 2:
-                f.vector().vec().setValueLocal(2*i, F_new[0][1])
-                f.vector().vec().setValueLocal(2*i+1, F_new[1][1])
+                f.vector().vec().setValueLocal(2*i, F_new[0][1] / d2)
+                f.vector().vec().setValueLocal(2*i+1, F_new[1][1] / d2)
             elif domains.array()[i] == 3:
-                f.vector().vec().setValueLocal(2*i, F_new[0][2])
-                f.vector().vec().setValueLocal(2*i+1, F_new[1][2])
+                f.vector().vec().setValueLocal(2*i, F_new[0][2] / d3)
+                f.vector().vec().setValueLocal(2*i+1, F_new[1][2] / d3)
             else:
                 f.vector().vec().setValueLocal(2*i, 0.0)
                 f.vector().vec().setValueLocal(2*i+1, 0.0)
@@ -156,8 +152,9 @@ def fenicsOptimizer(problemConditions):
         u, v = TrialFunction(VDG), TestFunction(VDG)
         a = inner(u, v)*dx
         L = inner(von_Mises, v)*dx(0) + inner(von_Mises, v)*dx(4)
+        A, b = assemble_system(a, L)
         stress = Function(VDG)
-        solve(a==L, stress)
+        solve(A, stress.vector(), b)
         return stress
 
     # RELU^2 Function for Global Stress Constraint Computation
@@ -189,18 +186,25 @@ def fenicsOptimizer(problemConditions):
         f = generate_loads(rho)
         a = simp(rho)*inner(sigma(u), strain(v))*dx
         L = dot(f, v)*dx
+        A, b = assemble_system(a, L)
         u = Function(U)
-        solve(a == L, u)
+        solve(A, u.vector(), b)
         return (f, u)
 
     # MAIN
-    def main():
+    def main()
         x = interpolate(Constant(0.99), X)  # Initial value of 0.5 for each element's density
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
         print("Max Von Mises = ", max(vm.vector()[:]))
         File("output2/domains.pvd") << domains
+
+        print(np.count_nonzero(domains.array() == 1))
+        print(np.count_nonzero(domains.array() == 2))
+        print(np.count_nonzero(domains.array() == 3))
+
+        print(np.sum(f.vector()[:]))
 
         controls = File("output2/control_iterations.pvd")
         x_viz = Function(X, name="ControlVisualisation")
