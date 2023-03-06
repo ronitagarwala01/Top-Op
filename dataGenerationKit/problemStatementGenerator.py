@@ -1,6 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def calcRatio(a, b):
+    """
+    Finds the ratio between two numbers. Used to prevent FEniCS from freaking out.
+    Aka, in xDim, yDim, and L, W within massopt_n.py
+    """
+    gcd = np.gcd(a, b)
+
+    aReduced = a / gcd
+    bReduced = b / gcd
+    
+    return aReduced, bReduced
 
 def correctCircleOverlap2(x:float,y:float,circlesArray):
     """
@@ -233,5 +244,4 @@ def test():
 
 if(__name__ == "__main__"):
     test()
-
 
