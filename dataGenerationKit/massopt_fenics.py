@@ -6,6 +6,7 @@ import ufl as ufl
 from ufl import nabla_div
 from fenics_adjoint import *
 from pyadjoint import ipopt
+from problemStatementGenerator import *
 
 def fenicsOptimizer(problemConditions):
     circle_coords = problemConditions[0]
