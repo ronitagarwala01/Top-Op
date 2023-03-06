@@ -214,8 +214,32 @@ def FenicsCircleAndForceGenerator(xDim,yDim):
 
     return circle1,circle2,circle3,forces
     
+def createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,ComplianceMinVal,SmaxRatio,SminRatio,StressMinVal):
+    """
+    Creates random values for Young's modulus, stress max, and compliance max.
 
-def test():
+    generates the Young's modulus first then generates Compliance max and Stress max from ratios based of the Young's modulus
+    This means that compliance max and stress max will be within some ratio of the generated young's modulus
+    The stress and compliance min values will be added to the number after the ratio has been calculated
+
+    EX:
+        - if youngs modulus is 1, then stress or compliance will be between their respective min and max ratios plus their minVal
+        - if youngs modulus is !=1, then stress or compliance will be between youngs*MinRatio and youngs*MaxRatio plus their minVal
+    
+    Returns:
+        - YoungsModulus
+        - ComplianceMax
+        - StressMax
+    """
+    YoungsModulus = np.random.random()*(YoungsModulusMax-YoungsModulusMin) + YoungsModulusMin
+
+    ComplianceMax = YoungsModulus * (np.random.random()*(CmaxRatio-CminRatio) + CminRatio) + ComplianceMinVal
+    StressMax = YoungsModulus * (np.random.random()*(SmaxRatio-SminRatio) + SminRatio) + StressMinVal
+
+    return YoungsModulus,ComplianceMax,StressMax
+
+
+def testCircles():
     c1,c2,c3 = generateRandomProblemStatement_2D(2,1)
     print(c1[:2],c1[2])
     print(c2[:2],c2[2])
@@ -242,6 +266,23 @@ def test():
     plt.show()
 
 
+def testParams():
+
+    YoungsModulusMin = 1
+    YoungsModulusMax = 5
+    CmaxRatio = 2
+    CminRatio = 1.0
+    ComplianceMinVal = 10
+    SmaxRatio = 2
+    SminRatio = 1.0
+    StressMinVal = 10
+
+    for i in range(10):
+        y,c,s = createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,ComplianceMinVal,SmaxRatio,SminRatio,StressMinVal)
+
+        print("Youngs:{:.5f}\tStress:{:.5f}\tCompliance:{:.5f}".format(y,s,c))
+
+
 if(__name__ == "__main__"):
-    test()
+    testParams()
 
