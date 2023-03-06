@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from problemStatementGenerator import *
 from ProblemMapper import *
-from massopt_5 import *
+from massopt_fenics import *
 
 def generateProblem(nelx=100, nely=50, C_max=20.0, S_max=3.0e+6, Y=2.0e+11):
 
