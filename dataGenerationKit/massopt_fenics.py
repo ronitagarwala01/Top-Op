@@ -193,7 +193,7 @@ def fenicsOptimizer(problemConditions):
         return (f, u)
 
     # MAIN
-    def main()
+    def main():
         x = interpolate(Constant(0.99), X)  # Initial value of 0.5 for each element's density
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
