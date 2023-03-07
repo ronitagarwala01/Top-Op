@@ -4,7 +4,10 @@ from problemStatementGenerator import *
 from ProblemMapper import *
 from massopt_fenics import *
 
-def generateProblem(nelx=100, nely=50, C_max=20.0, S_max=3.0e+6, Y=2.0e+11):
+from time import perf_counter
+
+
+def generateProblemOrientation(nelx=100, nely=50, C_max=2.0e-3, S_max=3.0e+7, Y=3.5e+11):
 
     xDim, yDim = calcRatio(nelx, nely) # Length, Width
 
@@ -28,8 +31,8 @@ def generateProblem(nelx=100, nely=50, C_max=20.0, S_max=3.0e+6, Y=2.0e+11):
             unpackedConditions.append(conditions[x])
 
         return unpackedConditions
-    
-    
+        
+
     def formatForFenics(conditions):
         cx, cy = [], []
         formattedCircles, radii = [], []
@@ -59,24 +62,79 @@ def generateProblem(nelx=100, nely=50, C_max=20.0, S_max=3.0e+6, Y=2.0e+11):
     unpackedConditions = np.array(unpackConditions(initial_conditions))
     formattedConditions = np.array(formatForFenics(initial_conditions), dtype=object)
 
-
-
     return unpackedConditions, formattedConditions
 
 
+def generateProblemConditions(formatted):
+    # formatted = [circles, radii, forces, nelx, nely, Y, C_max, S_max]
 
-def generateData(numPoints):
+    YoungsModulusMax = 1e+12
+    YoungsModulusMin = 1e+9
     
-    for x in range(numPoints):
-        print("\n\n")
-        unpacked, formatted = generateProblem()
+    CmaxRatio = 1e-5
+    CminRatio = 1e-3
+    ComplianceMinVal = 0
 
-        print("\n\nData Point:", x)
-        print("Pass to fenics")
-        fenicsOptimizer(formatted)
+    SmaxRatio = 1e+8
+    SminRatio = 1e+6
+    StressMinVal = 0
+
+    y,c,s = createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,ComplianceMinVal,SmaxRatio,SminRatio,StressMinVal)
+
+    formatted[5] = y
+    formatted[6] = c
+    formatted[7] = s
+
+    return formatted
+    
+def testBS():
+    for i in range(10):
+        print("\n", i)    
+        _, formatted = generateProblemOrientation()
+        formatted = generateProblemConditions(formatted)
+
+        # print(formatted)
+
+        circles = formatted[0]
+        radii = formatted[1]
+        forces = formatted[2]
+        nelx, nely = formatted[3], formatted[4]
+        Y, C_max, S_max = formatted[5], formatted[6], formatted[7]
+
+        np.set_printoptions(suppress=False, precision=1000)
+        print("Y",np.array([Y]))
+        print("C", np.array([C_max]))
+        print("S", np.array([S_max]))
+
+
+
+def generateData(numOr, numCon, numIter):
+    
+    start = perf_counter()
+    for x in range(numOr):
+        print("\n\n")
+        _, formatted = generateProblemOrientation()
+
+        for y in range(numCon):
+            # formatted = generateProblemConditions(formatted)
+
+            print("\n\nData Point:", x)
+            print("Pass to fenics")
+
+            iterations = fenicsOptimizer(formatted, numIter)
+
+            # saveData(formatted, iterations)
+
         print("After fenics")
+    end = perf_counter()
+
+    time = end - start
+    print(time)
         
     return
 
-generateData(5)
+generateData(1, 1, 20)
+# testBS()
+
+
 
