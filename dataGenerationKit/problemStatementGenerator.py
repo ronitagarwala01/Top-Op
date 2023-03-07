@@ -44,7 +44,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
         #check the circle for the right wall colision
         if(c1_x + c1_r > x):
             circlesArray[i][0] =  (x-c1_r)
-            print("Shift {} left to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x + c1_r,x))
+            #print("Shift {} left to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x + c1_r,x))
             xCorrectionMade = True
         
         #check the circle for the left wall colision
@@ -53,12 +53,12 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
                 raise Exception("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
             else:
                 circlesArray[i][0] =  c1_r
-                print("Shift {} right to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x - c1_r,0))
+                #print("Shift {} right to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x - c1_r,0))
         
         #check the circle for the floor colision
         if(c1_y + c1_r > y):
             circlesArray[i][1] =  (y-c1_r)
-            print("Shift {} down to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y + c1_r,y))
+            #print("Shift {} down to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y + c1_r,y))
             yCorrectionMade = True
         
         #check the circle for the ceiling colision
@@ -67,7 +67,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
                 raise Exception("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
             else:
                 circlesArray[i][1] =  c1_r
-            print("Shift {} up to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y - c1_r,0))
+            #print("Shift {} up to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y - c1_r,0))
 
 
     """
@@ -97,11 +97,11 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
                 #check distance between circles
                 distBetweenCirclesCenters = np.sqrt((c1_x-c2_x)**2 + (c1_y-c2_y)**2)
                 #if the distance between midpoints is less than the radius of the circles then decrease the radius scalling factor
-                print(f'Comparing {i} to {j}: dist: {distBetweenCirclesCenters} - {radiusScallingFactor*(c1_r+c2_r)} = {(distBetweenCirclesCenters - radiusScallingFactor*(c1_r+c2_r))}')
+                #print(f'Comparing {i} to {j}: dist: {distBetweenCirclesCenters} - {radiusScallingFactor*(c1_r+c2_r)} = {(distBetweenCirclesCenters - radiusScallingFactor*(c1_r+c2_r))}')
                 if((distBetweenCirclesCenters - (radiusScallingFactor*(c1_r+c2_r))) <= 0):
 
-                    radiusScallingFactor = (distBetweenCirclesCenters/(radiusScallingFactor*(c1_r+c2_r))) * 0.95 #this .95 multiplier ensures that the circles will not touch.
-                    print(f"\tNew Radius scalling factor is: {radiusScallingFactor}.")
+                    radiusScallingFactor = (distBetweenCirclesCenters/(radiusScallingFactor*(c1_r+c2_r))) * 0.8 #this .95 multiplier ensures that the circles will not touch.
+                    #print(f"\tNew Radius scalling factor is: {radiusScallingFactor}.")
                     if(radiusScallingFactor*c2_r <= minRadius):
                         raise Exception("Error in generating Circles. Circle {} and Circle {} are too close together".format(i,j))
     for i in range(len(circlesArray)):
@@ -153,8 +153,8 @@ def generateRandomProblemStatement_2D(nelx,nely):
     canSetUp = False
     for i in range(setupTries):
         try:                                                                            
-            circle_1 = randomCircleGenerator(nelx,nely,3)
-            circle_2 = randomCircleGenerator(nelx,nely,3)
+            circle_1 = randomCircleGenerator(nelx,nely,10000)
+            circle_2 = randomCircleGenerator(nelx,nely,10000)
             circle_3 = forceEquilizer(nelx,nely,circle_1,circle_2)
 
             circle_1,circle_2,circle_3 = correctCircleOverlap2(nelx,nely,[circle_1,circle_2,circle_3])
@@ -233,8 +233,8 @@ def createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,Comp
     """
     YoungsModulus = np.random.random()*(YoungsModulusMax-YoungsModulusMin) + YoungsModulusMin
 
-    ComplianceMax = YoungsModulus * (np.random.random()*(CmaxRatio-CminRatio) + CminRatio) + ComplianceMinVal
-    StressMax = YoungsModulus * (np.random.random()*(SmaxRatio-SminRatio) + SminRatio) + StressMinVal
+    ComplianceMax = (np.random.random()*(CmaxRatio-CminRatio) + CminRatio) + ComplianceMinVal
+    StressMax = (np.random.random()*(SmaxRatio-SminRatio) + SminRatio) + StressMinVal
 
     return YoungsModulus,ComplianceMax,StressMax
 
@@ -285,4 +285,3 @@ def testParams():
 
 if(__name__ == "__main__"):
     testParams()
-
