@@ -2,7 +2,6 @@ import numpy as np
 import math
 from fenics import *
 from dolfin import *
-from mshr import *
 import ufl as ufl
 from ufl import nabla_div
 from fenics_adjoint import *
