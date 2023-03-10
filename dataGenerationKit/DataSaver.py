@@ -212,3 +212,65 @@ def unpackIterations(iteration):
     derivative = iteration['b']
 
     return x,derivative
+
+
+def flipLoadConditions(formattedArray):
+    """
+    Takes the formatted Array and returns three variations with the circles fliped horizontally, vertically, and over the diagonal.
+
+    Parameters:
+        - formattedArray
+    
+    returns:
+        - formatted LR: fliped left right(horizontal mirror)
+        - formatted UD: fliped up down(vertical mirror)
+        - formatted diagnal: fliped over both horizontal and vertical
+    """
+    circles = formattedArray[0]
+    radii = formattedArray[1]
+    forces = formattedArray[2]
+    nelx, nely = formattedArray[3], formattedArray[4]
+    Y, C_max, S_max = formattedArray[5], formattedArray[6], formattedArray[7]
+
+    #create arrays for circle positions
+    circlesLR = circles.copy()
+    circlesUD = circles.copy()
+    circlesDiagonal = circles.copy()
+
+    #flip the x positions
+    circlesLR[0,:] = 2-circlesLR[0,:]
+
+    #flip y postions
+    circlesUD[1,:] = 1-circlesUD[1,:]
+
+    #flip diagonal
+    circlesDiagonal[0,:] = circlesLR[0,:]
+    circlesDiagonal[1,:] = circlesUD[1,:]
+
+    forcesLR = forces.copy()
+    forcesUD = forces.copy()
+    forcesDiagonal = forces.copy()
+
+    #flip the x magnitude
+    forcesLR[0,:] = -forcesLR[0,:]
+
+    #flip y magnitude
+    forcesUD[1,:] = -forcesUD[1,:]
+
+    #flip diagonal
+    forcesDiagonal[0,:] = forcesLR[0,:]
+    forcesDiagonal[1,:] = forcesUD[1,:]
+
+    #duplicate
+    formattedLR = [circlesLR,radii,forcesLR,nelx,nely,Y,C_max,S_max]
+    formattedUD = [circlesUD,radii,forcesUD,nelx,nely,Y,C_max,S_max]
+    formattedDiagonal = [circlesDiagonal,radii,forcesDiagonal,nelx,nely,Y,C_max,S_max]
+
+    return formattedLR,formattedUD,formattedDiagonal
+
+
+    
+
+
+
+
