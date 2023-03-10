@@ -63,9 +63,12 @@ def generateRandomProblemStatement(nelx,nely):
         # The variables are in order: x position of cylinder, y position of cylinder, radius of the cylinder, the magnitude of the force,
         # and the counterclockwise angle of the force in degrees.
 
-        circle_1 = [.15,.15,.1,1,(3/2)*np.pi]
-        circle_2 = [.5,.5,.2,1,(1/2)*np.pi]
-        circle_3 = [.85,.85,.1,1,(3/2)*np.pi]
+        circle_1 = [.2,.2,.1,1,(1/3)*np.pi]
+        circle_2 = [.8,.2,.1,1,(2/3)*np.pi]
+        circle_3 = [.5,.8,.1,1,(3/2)*np.pi]
+        c3 = forceEquilizer(circle_1,circle_2)
+        circle_3[3] = c3[3]
+        circle_3[4] = c3[4]
         filledArea,supportArea,forceVector,minViableArea = mapProblemStatement2D(nelx,nely,circle_2,circle_1,circle_3,"y")
         return filledArea,supportArea,forceVector
 
