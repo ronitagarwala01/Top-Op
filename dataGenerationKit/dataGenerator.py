@@ -1,10 +1,18 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from problemStatementGenerator import *
-from ProblemMapper import *
 from massopt_fenics import *
+from DataSaver import *
 
 from time import perf_counter
+
+
+# Number of data points are these two values multiplied.
+# Run the file after setting them, everything else is set up.
+# Honestly, running in batches of 5 might be smart. 
+# Though it really doesn't matter, since it saves after each optimization regardless
+numberOfProblemOrientations = 10          # Circle locations, forces, etc.
+numberOfConditionsChanges =  5         # Young's Modulus, C_max, S_max
 
 
 def generateProblemOrientation(nelx=100, nely=50, C_max=2.0e-3, S_max=3.0e+7, Y=3.5e+11):
@@ -107,34 +115,51 @@ def testBS():
         print("S", np.array([S_max]))
 
 
-
-def generateData(numOr, numCon, numIter):
+def generateData(numOr, numCon):
     
-    start = perf_counter()
     for x in range(numOr):
         print("\n\n")
-        _, formatted = generateProblemOrientation()
+        _, formatted = generateProblemOrientation(nelx=100, nely=50)
 
         for y in range(numCon):
-            # formatted = generateProblemConditions(formatted)
+            formatted = generateProblemConditions(formatted)
 
             print("\n\nData Point:", x)
             print("Pass to fenics")
 
-            iterations = fenicsOptimizer(formatted, numIter)
+            solutions_list, derivative_list = fenicsOptimizer(formatted)
+            print("After fenics")
 
-            # saveData(formatted, iterations)
-
-        print("After fenics")
-    end = perf_counter()
-
-    time = end - start
-    print(time)
-        
+            saveData(formatted, solutions_list, derivative_list)            
+            
     return
 
-generateData(1, 1, 20)
-# testBS()
+
+# 
+# Utility Functions
+# 
+def extractData():
+    conditions, x, der = getData('Agents/40_20/Agent_370494')
+
+    # print(x)
+    # lastIteration = x[-1]
+    # lastIteration = np.reshape(lastIteration, newshape=(100,50))
+
+    # plt.imshow(lastIteration)
+
+    sol, der = fenicsOptimizer(conditions)
+
+# extractData()
+
+def testIterLength():
+    conditions, x, der = getData('Agents/40_20/Agent_225240')
+
+    for iter in x:
+        print(iter.shape)
+
+    return
+
+# testIterLength()
 
 
-
+generateData(numberOfProblemOrientations, numberOfConditionsChanges)
