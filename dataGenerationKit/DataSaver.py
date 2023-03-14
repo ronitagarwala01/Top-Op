@@ -22,7 +22,7 @@ formated = [Circles_Array, radii_array, forces_array
 
 
 
-def saveData(formattedArray,iterationsArray, objectivesArray, derivativesArray):
+def saveData(formattedArray,iterationsArray, objectivesArray, derivativesArray,converged):
     """
     All in one save data function.
     Takes the formated arrays, the iteraions array ,and the derivatives array.
@@ -67,8 +67,11 @@ def saveData(formattedArray,iterationsArray, objectivesArray, derivativesArray):
     savedIterations = saveIteration(agentFolder,iterationsArray,objectivesArray,derivativesArray)
 
     #if there was an error(either bool is false) in saving the load conditions or the iterations, mark the folder as invalid
-    if((savedConditions and savedIterations) == False):
-        markAsInvalid(agentFolder)
+    if(((savedConditions and savedIterations) == False)):
+        markAs(agentFolder,"Invalid")
+    elif(converged == False):
+        markAs(agentFolder,"NotConverged")
+    
     
 def saveLoadConditions(folderToSaveTo,formattedArray):
     """
@@ -121,7 +124,7 @@ def saveIteration(folderToSaveTo,iterationsArray,objectivesArray,derivativesArra
         try:
             np.savez_compressed(fileNameToSaveAs,a=ar1,b=ar2,c=ar3)
         except:
-            print("Something went wrong.")
+            print("Something went wrong with saving iteraion: {}".format(i))
             print("Tried to save: {}".format(fileNameToSaveAs))
             numFailed += 1
     os.chdir(originalWorkingDirectory)
@@ -132,7 +135,7 @@ def saveIteration(folderToSaveTo,iterationsArray,objectivesArray,derivativesArra
         return False
     return True
 
-def markAsInvalid(folderToSaveTo):
+def markAs(folderToSaveTo,markString:str = "Invalid"):
     #Mark that the solution is invalid thus should not be used
     originalWorkingDirectory = os.getcwd()
     os.chdir(folderToSaveTo)
@@ -140,7 +143,7 @@ def markAsInvalid(folderToSaveTo):
     filesInDirectory = os.listdir()
 
     for file in filesInDirectory:
-        os.rename(file,str("Invalid_" + file))
+        os.rename(file,str(markString + "_" + file))
 
 
 
@@ -179,11 +182,13 @@ def getData(agentFileToGet):
     formated = unpackLoadConditions(loadConditions)
     x_array = []
     derivatives_array = []
+    objectives_array = []
     
     for num,arrays in iterations:
-        x,der = unpackIterations(arrays)
+        x,der,obj = unpackIterations(arrays)
         x_array.append(x)
         derivatives_array.append(der)
+        objectives_array.append(obj)
     
     return formated,x_array,derivatives_array
 
@@ -211,8 +216,9 @@ def unpackLoadConditions(loadConditions):
 def unpackIterations(iteration):
     x = iteration['a']
     derivative = iteration['b']
+    obj = iteration['c']
 
-    return x,derivative
+    return x,derivative,obj
 
 
 def flipLoadConditions(formattedArray):

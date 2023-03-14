@@ -132,8 +132,7 @@ def generateData(numOr, numCon):
             formatted[7] = S_max
             print("After fenics")
 
-            if converged == True:
-                saveData(formatted, solutions_list, objective_list, derivative_list)            
+            saveData(formatted, solutions_list, objective_list, derivative_list, converged)            
             
     return
 
@@ -142,7 +141,7 @@ def generateData(numOr, numCon):
 # Utility Functions
 # 
 def extractData():
-    conditions, x, der = getData('Agents/40_20/Agent_370494')
+    conditions, x, der, obj = getData('Agents/40_20/Agent_370494')
 
     # print(x)
     # lastIteration = x[-1]
