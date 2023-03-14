@@ -111,13 +111,13 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
     
     return circlesArray
 
-def randomCircleGenerator(x,y,maxForce:float,minForce:float=.1):
+def randomCircleGenerator(x,y):
     x1 = np.random.random()*x
     y1 = np.random.random()*y
     r1 = np.random.random()/2
     if(r1 <= 0.05):
         r1 = 0.1
-    f1 = (np.random.random()*(maxForce-minForce)) + minForce
+    f1 = np.random.normal(10000.0, 3333.0)
     a1 = np.random.random()*2*np.pi
     c1 = [x1,y1,r1,f1,a1]
     return c1
@@ -153,8 +153,8 @@ def generateRandomProblemStatement_2D(nelx,nely):
     canSetUp = False
     for i in range(setupTries):
         try:                                                                            
-            circle_1 = randomCircleGenerator(nelx,nely,10000)
-            circle_2 = randomCircleGenerator(nelx,nely,10000)
+            circle_1 = randomCircleGenerator(nelx,nely)
+            circle_2 = randomCircleGenerator(nelx,nely)
             circle_3 = forceEquilizer(nelx,nely,circle_1,circle_2)
 
             circle_1,circle_2,circle_3 = correctCircleOverlap2(nelx,nely,[circle_1,circle_2,circle_3])
@@ -214,7 +214,7 @@ def FenicsCircleAndForceGenerator(xDim,yDim):
 
     return circle1,circle2,circle3,forces
     
-def createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,ComplianceMinVal,SmaxRatio,SminRatio,StressMinVal):
+def createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,SmaxRatio,SminRatio):
     """
     Creates random values for Young's modulus, stress max, and compliance max.
 
@@ -233,8 +233,8 @@ def createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,Comp
     """
     YoungsModulus = np.random.random()*(YoungsModulusMax-YoungsModulusMin) + YoungsModulusMin
 
-    ComplianceMax = (np.random.random()*(CmaxRatio-CminRatio) + CminRatio) + ComplianceMinVal
-    StressMax = (np.random.random()*(SmaxRatio-SminRatio) + SminRatio) + StressMinVal
+    ComplianceMax = np.random.random()*(CmaxRatio-CminRatio) + CminRatio
+    StressMax = np.random.random()*(SmaxRatio-SminRatio) + SminRatio
 
     return YoungsModulus,ComplianceMax,StressMax
 

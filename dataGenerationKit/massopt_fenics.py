@@ -19,9 +19,9 @@ def fenicsOptimizer(problemConditions):
     nelx = problemConditions[3]
     nely = problemConditions[4]
     nelz = 25
-    Y = Constant(problemConditions[5])
-    C_max = Constant(problemConditions[6])
-    S_max = Constant(problemConditions[7])
+    Y = problemConditions[5]
+    C_max_coeff = problemConditions[6]
+    S_max_coeff = problemConditions[7]
     
     L, W = calcRatio(nelx, nely)
     
@@ -197,14 +197,27 @@ def fenicsOptimizer(problemConditions):
     # MAIN
     def main():
         x = interpolate(Constant(0.99), X)  # Initial value of 0.5 for each element's density
-        iteration_count = 0
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
+        C_min = assemble(dot(f, u)*dx)
+        S_min = vm.vector()[:].max()
+        C_max = C_min*C_max_coeff
+        S_max = S_min*S_max_coeff
+
+        print("Loads: ", loads)
+        print("Young's Modulus: ", Y)
+        print("C_max: ", C_max)
+        print("S_max: ", S_max)
+        print("Circle posistions: ", circle_coords)
+        print("Circle radii: ", radii)
+
         solution_list = []
+        objective_list = []
         derivative_list = []
         def derivative_cb(j, dj, m):
             solution_list.append(m.vector()[:])
+            objective_list.append(j)
             derivative_list.append(dj.vector()[:])
             
         # Objective Functional to be Minimized
@@ -313,15 +326,22 @@ def fenicsOptimizer(problemConditions):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 200}
+        parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
+
+        converged = False
+        with open('ipoptOut.txt', 'r') as f:
+            last_line = f.readlines()[-1]
+            if last_line == "EXIT: Optimal Solution Found.\n" or last_line == "EXIT: Solved To Acceptable Level.\n":
+                converged = True
+
         (f_final, u_opt) = forward(rho_opt)
         vm_opt = von_mises(u_opt)
 
         File("output/final_solution.pvd") << rho_opt
-        File("output/von_mises.pvd") << vm
+        File("output/von_mises.pvd") << vm_opt
         File("output/domains.pvd") << domains
 
         sol_file = File("output/solutions.pvd")
@@ -349,7 +369,7 @@ def fenicsOptimizer(problemConditions):
         xdmf_filename = XDMFFile(MPI.comm_world, "output/final_solution.xdmf")
         xdmf_filename.write(rho_opt)
 
-        return solution_list, derivative_list
+        return solution_list, objective_list, derivative_list, C_max, S_max, converged
 
     return main()
 

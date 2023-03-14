@@ -76,18 +76,18 @@ def generateProblemOrientation(nelx=100, nely=50, C_max=2.0e-3, S_max=3.0e+7, Y=
 def generateProblemConditions(formatted):
     # formatted = [circles, radii, forces, nelx, nely, Y, C_max, S_max]
 
-    YoungsModulusMax = 1e+12
-    YoungsModulusMin = 1e+9
+    YoungsModulusMax = 5.0e+11
+    YoungsModulusMin = 5.0e+10
     
-    CmaxRatio = 1e-5
-    CminRatio = 1e-3
-    ComplianceMinVal = 0
+    CmaxRatio = 50.0
+    CminRatio = 2.0
+    # ComplianceMinVal = 0
 
-    SmaxRatio = 1e+8
-    SminRatio = 1e+6
-    StressMinVal = 0
+    SmaxRatio = 500.0
+    SminRatio = 100.0
+    # StressMinVal = 0
 
-    y,c,s = createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,ComplianceMinVal,SmaxRatio,SminRatio,StressMinVal)
+    y,c,s = createConstraints(YoungsModulusMin,YoungsModulusMax,CmaxRatio,CminRatio,SmaxRatio,SminRatio)
 
     formatted[5] = y
     formatted[6] = c
@@ -127,10 +127,13 @@ def generateData(numOr, numCon):
             print("\n\nData Point:", x)
             print("Pass to fenics")
 
-            solutions_list, derivative_list = fenicsOptimizer(formatted)
+            solutions_list, objective_list, derivative_list, C_max, S_max, converged = fenicsOptimizer(formatted)
+            formatted[6] = C_max
+            formatted[7] = S_max
             print("After fenics")
 
-            saveData(formatted, solutions_list, derivative_list)            
+            if converged == True:
+                saveData(formatted, solutions_list, objective_list, derivative_list)            
             
     return
 
@@ -147,7 +150,7 @@ def extractData():
 
     # plt.imshow(lastIteration)
 
-    sol, der = fenicsOptimizer(conditions)
+    sol, obj, der, cm, sm, vm, c = fenicsOptimizer(conditions)
 
 # extractData()
 

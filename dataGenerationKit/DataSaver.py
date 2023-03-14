@@ -22,7 +22,7 @@ formated = [Circles_Array, radii_array, forces_array
 
 
 
-def saveData(formattedArray,iterationsArray,derivativesArray):
+def saveData(formattedArray,iterationsArray, objectivesArray, derivativesArray):
     """
     All in one save data function.
     Takes the formated arrays, the iteraions array ,and the derivatives array.
@@ -64,7 +64,7 @@ def saveData(formattedArray,iterationsArray,derivativesArray):
     savedConditions = saveLoadConditions(agentFolder,formattedArray)
     
     #save the iterations arrays
-    savedIterations = saveIteration(agentFolder,iterationsArray,derivativesArray)
+    savedIterations = saveIteration(agentFolder,iterationsArray,objectivesArray,derivativesArray)
 
     #if there was an error(either bool is false) in saving the load conditions or the iterations, mark the folder as invalid
     if((savedConditions and savedIterations) == False):
@@ -101,7 +101,7 @@ def saveLoadConditions(folderToSaveTo,formattedArray):
     os.chdir(originalWorkingDirectory)
     return dataIsSaved
 
-def saveIteration(folderToSaveTo,iterationsArray,derivativesArray):
+def saveIteration(folderToSaveTo,iterationsArray,objectivesArray,derivativesArray):
     """
     Saves the individule interatins for X and the derivative of X
 
@@ -115,10 +115,11 @@ def saveIteration(folderToSaveTo,iterationsArray,derivativesArray):
         
         #unpack data
         ar1 = iterationsArray[i]
-        ar2 = derivativesArray[i]
+        ar2 = objectivesArray[i]
+        ar3 = derivativesArray[i]
         
         try:
-            np.savez_compressed(fileNameToSaveAs,a=ar1,b=ar2)
+            np.savez_compressed(fileNameToSaveAs,a=ar1,b=ar2,c=ar3)
         except:
             print("Something went wrong.")
             print("Tried to save: {}".format(fileNameToSaveAs))
@@ -270,7 +271,6 @@ def flipLoadConditions(formattedArray):
 
 
     
-
 
 
 
