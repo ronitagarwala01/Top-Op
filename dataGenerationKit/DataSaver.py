@@ -67,10 +67,13 @@ def saveData(formattedArray,iterationsArray, objectivesArray, derivativesArray,c
     savedIterations = saveIteration(agentFolder,iterationsArray,objectivesArray,derivativesArray)
 
     #if there was an error(either bool is false) in saving the load conditions or the iterations, mark the folder as invalid
+    print("Agent {} saved to path:\n\t{}".format(num,agentFolder))
     if(((savedConditions and savedIterations) == False)):
         markAs(agentFolder,"Invalid")
+        print("There was an error saving the data. Marked as Invalid.")
     elif(converged == False):
         markAs(agentFolder,"NotConverged")
+        print("Data did not converge. Marked as NotConverged.")
     
     
 def saveLoadConditions(folderToSaveTo,formattedArray):
