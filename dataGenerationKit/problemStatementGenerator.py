@@ -58,7 +58,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
         #check the circle for the floor colision
         if(c1_y + c1_r > y):
             circlesArray[i][1] =  (y-c1_r)
-            print("Shift {} down to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y + c1_r,y))
+            #print("Shift {} down to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y + c1_r,y))
             yCorrectionMade = True
         
         #check the circle for the ceiling colision
@@ -67,7 +67,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
                 raise Exception("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
             else:
                 circlesArray[i][1] =  c1_r
-            print("Shift {} up to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y - c1_r,0))
+            #print("Shift {} up to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y - c1_r,0))
 
 
     """
@@ -97,13 +97,14 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
 
                 #check distance between circles
                 distBetweenCirclesCenters = np.sqrt((c1_x-c2_x)**2 + (c1_y-c2_y)**2)
+                radiusLength = (c1_r+c2_r)
                 #if the distance between midpoints is less than the radius of the circles then decrease the radius scalling factor
-                print(f'Comparing {i} to {j}: dist: {distBetweenCirclesCenters} - {radiusScallingFactor*(c1_r+c2_r)} = {(distBetweenCirclesCenters - radiusScallingFactor*(c1_r+c2_r))}')
-                if((distBetweenCirclesCenters - (radiusScallingFactor*(c1_r+c2_r))) <= 0):
+                #print(f'Comparing {i} to {j}: dist: {distBetweenCirclesCenters} - {radiusLength} = {(distBetweenCirclesCenters - radiusLength)}')
+                if((distBetweenCirclesCenters - radiusLength) <= 0):
                     
                 
-                    radiusScallingFactor = (distBetweenCirclesCenters/(radiusScallingFactor*(c1_r+c2_r))) * radiusSeparationFactor #this .95 multiplier ensures that the circles will not touch.
-                    print(f"\tNew Radius scalling factor is: {radiusScallingFactor}.")
+                    radiusScallingFactor = min(radiusScallingFactor,(distBetweenCirclesCenters/((c1_r+c2_r))) * radiusSeparationFactor) #this .95 multiplier ensures that the circles will not touch.
+                    #print(f"\tNew Radius scalling factor is: {radiusScallingFactor}.")
                     if((radiusScallingFactor*c2_r <= minRadius) or (radiusScallingFactor*c1_r <= minRadius)):
                         raise Exception("Error in generating Circles. Circle {} and Circle {} are too close together".format(i,j))
     for i in range(len(circlesArray)):
