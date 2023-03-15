@@ -77,6 +77,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
     When the first checks are run this number should be 1 but will get smaller if an overlap occurs
     """
     minRadius = 0.1
+    minDistance = 0.1
     radiusSeparationFactor = .8
     radiusScallingFactor = 1
     #check if circles overlap
@@ -100,7 +101,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
                 radiusLength = (c1_r+c2_r)
                 #if the distance between midpoints is less than the radius of the circles then decrease the radius scalling factor
                 #print(f'Comparing {i} to {j}: dist: {distBetweenCirclesCenters} - {radiusLength} = {(distBetweenCirclesCenters - radiusLength)}')
-                if((distBetweenCirclesCenters - radiusLength) <= 0):
+                if((distBetweenCirclesCenters - radiusLength) <= minDistance):
                     
                 
                     radiusScallingFactor = min(radiusScallingFactor,(distBetweenCirclesCenters/((c1_r+c2_r))) * radiusSeparationFactor) #this .95 multiplier ensures that the circles will not touch.
