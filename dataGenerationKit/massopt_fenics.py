@@ -216,9 +216,10 @@ def fenicsOptimizer(problemConditions):
         objective_list = []
         derivative_list = []
         def derivative_cb(j, dj, m):
-            solution_list.append(m.vector()[:])
+            #solution_list.append(m.vector()[:])
+            solution_list.append(m.compute_vertex_values())
             objective_list.append(j)
-            derivative_list.append(dj.vector()[:])
+            derivative_list.append(dj.compute_vertex_values())
             
         # Objective Functional to be Minimized
         J = assemble(x*dx(0))
