@@ -36,7 +36,7 @@ def fenicsOptimizer(problemConditions):
     eps = Constant(1.0e-3)                          # Epsilon value for SIMP to remove singularities
     nu = Constant(0.3)                              # Poisson's Ratio
     r = Constant(0.025)                             # Length Parameter for Helmholtz Filter
-    b_rad = Constant(0.025)                         # Radius for boundary around circles
+    b_rad = Constant(0.02)                         # Radius for boundary around circles
 
     # Define Mesh
     mesh = RectangleMesh(Point(0.0, 0.0), Point(L, W), nelx, nely)
@@ -200,6 +200,8 @@ def fenicsOptimizer(problemConditions):
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
+        File("output/domains.pvd") << domains
+
         C_min = assemble(dot(f, u)*dx)
         S_min = vm.vector()[:].max()
         C_max = C_min*C_max_coeff
@@ -327,7 +329,7 @@ def fenicsOptimizer(problemConditions):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
@@ -343,7 +345,6 @@ def fenicsOptimizer(problemConditions):
 
         File("output/final_solution.pvd") << rho_opt
         File("output/von_mises.pvd") << vm_opt
-        File("output/domains.pvd") << domains
 
         sol_file = File("output/solutions.pvd")
         sols = []
