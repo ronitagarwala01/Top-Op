@@ -43,7 +43,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
 
         #check the circle for the right wall colision
         if(c1_x + c1_r > x):
-            circlesArray[i][0] =  (x-c1_r)
+            circlesArray[i][0] =  round((x-c1_r-0.01), 2)
             #print("Shift {} left to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x + c1_r,x))
             xCorrectionMade = True
         
@@ -52,12 +52,12 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
             if(xCorrectionMade):
                 raise Exception("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
             else:
-                circlesArray[i][0] =  c1_r
+                circlesArray[i][0] =  round(c1_r+0.01, 2)
                 #print("Shift {} right to {}:{},{}".format(i,circlesArray[i][0],circlesArray[i][0] * x - c1_r,0))
         
         #check the circle for the floor colision
         if(c1_y + c1_r > y):
-            circlesArray[i][1] =  (y-c1_r)
+            circlesArray[i][1] =  round((y-c1_r-0.01), 2)
             #print("Shift {} down to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y + c1_r,y))
             yCorrectionMade = True
         
@@ -66,7 +66,7 @@ def correctCircleOverlap2(x:float,y:float,circlesArray):
             if(yCorrectionMade):
                 raise Exception("Error in generating Circles. Circle {} is out of bounds on x-axis and cannot be fixed.".format(i))
             else:
-                circlesArray[i][1] =  c1_r
+                circlesArray[i][1] =  round(c1_r+0.01, 2)
             #print("Shift {} up to {}:{},{}".format(i,circlesArray[i][1],circlesArray[i][1] * y - c1_r,0))
 
 
