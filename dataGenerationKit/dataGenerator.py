@@ -11,8 +11,8 @@ from time import perf_counter
 # Run the file after setting them, everything else is set up.
 # Honestly, running in batches of 5 might be smart. 
 # Though it really doesn't matter, since it saves after each optimization regardless
-numberOfProblemOrientations = 10          # Circle locations, forces, etc.
-numberOfConditionsChanges =  5         # Young's Modulus, C_max, S_max
+numberOfProblemOrientations = 10000          # Circle locations, forces, etc.
+numberOfConditionsChanges =  1         # Young's Modulus, C_max, S_max
 
 
 def generateProblemOrientation(nelx=100, nely=50, C_max=2.0e-3, S_max=3.0e+7, Y=3.5e+11):
@@ -149,7 +149,7 @@ def extractData():
 
     # plt.imshow(lastIteration)
 
-    sol, obj, der, cm, sm, vm, c = fenicsOptimizer(conditions)
+    sol, obj, der, cm, sm, c = fenicsOptimizer(conditions)
 
 # extractData()
 
