@@ -158,7 +158,7 @@ def getData(agentFileToGet):
     Grabs and unpacks the data stored inside an agent file.
     To be used in conjunction with the fenics data creation and the saving format above.
     """
-
+    #print(agentFileToGet)
     FilesToGrab = os.listdir(agentFileToGet)
     numberOfIterations = len(FilesToGrab) - 1
     iterations = []
@@ -279,7 +279,162 @@ def flipLoadConditions(formattedArray):
     return formattedLR,formattedUD,formattedDiagonal
 
 
+def getPadding(lastIteration,nelx,nely):
+    cutOff = 0.05
+    lastIteration = np.where(lastIteration >= cutOff,1,0)
+
+    im = np.reshape(lastIteration,(nelx,nely),order='F')
+
+    #get padding on left
+    lPad = 0
+    for x in range(0,nelx,1):
+        currentCol = im[x,:]
+        avgVal = np.mean(currentCol)
+        if(avgVal == 0):
+            lPad += 1
+        else:
+            break
+        
+    print(lPad)
+    rPad = 0
+    for x in range(nelx-1,-1,-1):
+        currentCol = im[x,:]
+        avgVal = np.mean(currentCol)
+        if(avgVal == 0):
+            rPad += 1
+        else:
+            break
+    print(rPad)
+
+    uPad = 0
+    for y in range(0,nely,1):
+        currentRow = im[:,y]
+        avgVal = np.mean(currentRow)
+        if(avgVal == 0):
+            uPad += 1
+        else:
+            break
+    print(uPad)
+
+    dPad = 0
+    for y in range(nely-1,-1,-1):
+        currentRow = im[:,y]
+        avgVal = np.mean(currentRow)
+        if(avgVal == 0):
+            dPad += 1
+        else:
+            break
+    print(dPad)
+
+    return lPad,rPad,uPad,dPad
+
+def averageArray(ar1):
+    n = ar1.shape[0]
+    newArray = np.zeros(n)
+    #print(n)
+
+    for i in range(n):
+        if (i == 0):
+            a1 = ar1[i]
+            a2 = ar1[i+1]
+            a3 = 0
+        elif(i==n-1):
+            a1 = ar1[i]
+            a2 = ar1[i-1]
+            a3 = 0
+        else:
+            a1 = ar1[i-1]
+            a2 = ar1[i]
+            a3 = ar1[i+1]
+        
+        v = (a1+a2+a3)/3
+        newArray[i] = v
+
+    return newArray
+
+
+
+def shiftImage(image,shiftLR,shiftUD):
+
+    if(shiftLR < 0):
+        while(shiftLR < 0):
+            shiftLR += 1
+            colToRepeat = image[:,0]
+            #shift over image
+            image = np.roll(image,-1,0)
+            image[:,0] = averageArray(colToRepeat)
+    elif(shiftLR > 0):
+        while(shiftLR > 0):
+            shiftLR -= 1
+            colToRepeat = image[:,-1]
+            #shift over image
+            image = np.roll(image,1,0)
+            image[:,-1] = averageArray(colToRepeat)
     
+    if(shiftUD < 0):
+        while(shiftUD < 0):
+            shiftUD += 1
+            rowToRepeat = image[0,:]
+            #shift over image
+            image = np.roll(image,-1,1)
+            image[0,:] = averageArray(rowToRepeat)
+    elif(shiftUD > 0):
+        while(shiftUD > 0):
+            shiftUD -= 1
+            rowToRepeat = image[-1,:]
+            #shift over image
+            image = np.roll(image,1,1)
+            image[-1,:] = averageArray(rowToRepeat)
+
+
+    return image
+
+def shiftPart(iterationsArray,formatted):
+    """
+    Takes a part and randomly translates the part to a new location preserving scale
+
+    Works by checking how much space is left on the part of the final iteration and uses this to create a range that the part can move
+
+    With this shift amount we can shift the part over. 
+    when dealing with edge cases, we can shift elements out easily and when shifting elements in we simply repeat the edge.
+
+    This will cause some artifacts but it may be ok with the iterateive model.
+    """
+
+    circles = formatted[0]
+    radii = formatted[1]
+    forces = formatted[2]
+    nelx, nely = formatted[3], formatted[4]
+    Y, C_max, S_max = formatted[5], formatted[6], formatted[7]
+
+    lastIteration = iterationsArray[-1]
+
+    lPad,rPad,uPad,dPad = getPadding(lastIteration,nelx+1,nely+1)
+    if(lPad == 0 and rPad == 0):
+        shiftAmountLR = 0
+    else:
+        shiftAmountLR = np.random.randint(-lPad , rPad )
+
+    if(uPad == 0 and rPad == 0):
+        shiftAmountUD = 0
+    else:
+        shiftAmountUD = np.random.randint(-uPad , dPad )
+    print(shiftAmountLR,shiftAmountUD)
+
+
+    x_shiftAmount = 2/nelx
+    y_shiftAmount = 1/nely
+
+    
+
+    for i in range(3):
+       circles[0][i] += shiftAmountLR*x_shiftAmount 
+       circles[1][i] += shiftAmountUD*y_shiftAmount
+    
+    shiftedFormat = [circles,radii,forces,nelx,nely,Y,C_max,S_max]
+    #showShiftedPart(iterationsArray,nelx+1,nely+1,shiftAmountLR,shiftAmountUD)
+    return shiftedFormat
+
 
 
 
