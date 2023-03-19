@@ -193,8 +193,8 @@ if __name__ == "__main__":
     vm = von_mises(u) 
     S_min = vm.vector()[:].max()
     C_min = assemble(dot(f,u)*dx)
-    C_max = C_min * 5
-    S_max = S_min * 300
+    #C_max = C_min * 5
+    #S_max = S_min * 300
     
     iteration_count = 0
 
