@@ -3,6 +3,7 @@
 import numpy as np
 import os
 
+
 """
 Optimized_array: list of 1D numpy arrays for each iteration of the optimizer
 Derivatives_array: same as above but holds derivatives of the part.
@@ -75,7 +76,59 @@ def saveData(formattedArray,iterationsArray, objectivesArray, derivativesArray,c
         markAs(agentFolder,"NotConverged")
         print("Data did not converge. Marked as NotConverged.")
     
+def saveAugmentedData(formattedArray,iterationsArray, objectivesArray, derivativesArray,mark:str=''):
+    """
+    All in one save data function.
+    Takes the formated arrays, the iteraions array ,and the derivatives array.
+    Creates a new folder to save the data to and saves all the files as compressed numpy arrays.
+    """
+
+    nelx, nely = formattedArray[3], formattedArray[4]
+
+    #Check the current path and locate the correct folder to save the data to
+    workingDirectory = os.getcwd()
+    agentDirectory = os.path.join(workingDirectory,"Agents")
+    dimesionFolder = os.path.join(agentDirectory,"{}_{}".format(nelx,nely))
+    pathExists = os.path.exists(dimesionFolder)
+    if( not pathExists):
+        os.makedirs(dimesionFolder)
+
+    #create a random agent number so that files can be seperated
+    num = np.random.randint(1,999999)
+    agentFolder = os.path.join(dimesionFolder,"Agent_{}".format(num))
+    pathExists = os.path.exists(agentFolder)
+    if(not pathExists):
+        os.makedirs(agentFolder)
+    else:
+        # if the agent folder currently exist then create an Agent#_ folder
+        foundOpenNumber = False
+        currentNumber = 1
+        while( not foundOpenNumber):
+            currentAgentN = os.path.join(dimesionFolder,"Agent{}_{}".format(currentNumber,num))
+            pathExists = os.path.exists(currentAgentN)
+            if(pathExists):
+                currentNumber += 1
+            else:
+                foundOpenNumber = True
+        os.makedirs(currentAgentN)
+        agentFolder = currentAgentN
     
+
+    #using the created folder save the initial load conditions
+    savedConditions = saveLoadConditions(agentFolder,formattedArray)
+    
+    #save the iterations arrays
+    savedIterations = saveIteration(agentFolder,iterationsArray,objectivesArray,derivativesArray)
+
+    #if there was an error(either bool is false) in saving the load conditions or the iterations, mark the folder as invalid
+    print("Agent {} saved to path:\n\t{}".format(num,agentFolder))
+    if(((savedConditions and savedIterations) == False)):
+        markAs(agentFolder,"Invalid")
+        print("There was an error saving the data. Marked as Invalid.")
+    else:    
+        markAs(agentFolder,mark)
+
+
 def saveLoadConditions(folderToSaveTo,formattedArray):
     """
     Saves the load conditions stored inside the formatted Array
@@ -158,19 +211,24 @@ def getData(agentFileToGet):
     Grabs and unpacks the data stored inside an agent file.
     To be used in conjunction with the fenics data creation and the saving format above.
     """
-
+    #print(agentFileToGet)
     FilesToGrab = os.listdir(agentFileToGet)
     numberOfIterations = len(FilesToGrab) - 1
     iterations = []
+    markName = ''
 
 
     for fileName in FilesToGrab:
         if('loadConditions' in fileName):
             loadConditions = np.load(os.path.join(agentFileToGet,fileName))
             #print('loadCondtions Exist')
+            markIndex = fileName.index('loadConditions')
+            if(markIndex > 0):
+                markName = fileName[:markIndex-1]
             
         elif('iteration_' in fileName):
-            number_extension = fileName[len('iteration_'):]
+            numberStart = fileName.index('iteration_')
+            number_extension = fileName[numberStart+len('iteration_'):]
             extesionIndex = number_extension.find('.')
             number = int(number_extension[:extesionIndex])
             #print(number)
@@ -188,12 +246,12 @@ def getData(agentFileToGet):
     objectives_array = []
     
     for num,arrays in iterations:
-        x,der,obj = unpackIterations(arrays)
+        x,obj,der = unpackIterations(arrays)
         x_array.append(x)
         derivatives_array.append(der)
         objectives_array.append(obj)
     
-    return formated,x_array,derivatives_array
+    return formated,x_array,derivatives_array,objectives_array,markName
 
 def unpackLoadConditions(loadConditions):
     """
@@ -224,62 +282,38 @@ def unpackIterations(iteration):
     return x,derivative,obj
 
 
-def flipLoadConditions(formattedArray):
-    """
-    Takes the formatted Array and returns three variations with the circles fliped horizontally, vertically, and over the diagonal.
+# def saveIterationsAsGif(agentFileToGet):
+#     try:
+#         import PIL
+#         import io
+#     except ImportError:
+#         print("Modules not found, could not save iterations as gif.")
+#         return
+#     else:
 
-    Parameters:
-        - formattedArray
-    
-    returns:
-        - formatted LR: fliped left right(horizontal mirror)
-        - formatted UD: fliped up down(vertical mirror)
-        - formatted diagnal: fliped over both horizontal and vertical
-    """
-    circles = formattedArray[0]
-    radii = formattedArray[1]
-    forces = formattedArray[2]
-    nelx, nely = formattedArray[3], formattedArray[4]
-    Y, C_max, S_max = formattedArray[5], formattedArray[6], formattedArray[7]
+#         formated,x_array,derivatives_array = getData(agentFileToGet)
+#         imageArray = []
 
-    #create arrays for circle positions
-    circlesLR = circles.copy()
-    circlesUD = circles.copy()
-    circlesDiagonal = circles.copy()
+#         for i,image in enumerate(PredictedImages):
+#             fig,ax = plt.subplots(1,1)
+            
+#             if(i == 0):
+#                 ax.set_title("Iteration: {}".format(i))
+#             else:
+#                 im1 = np.reshape(PredictedImages[i],(nelx*nely))
+#                 im2 = np.reshape(PredictedImages[i-1],(nelx*nely))
+#                 ax.set_title("Iteration: {}, Change: {:.5f}".format(i,np.linalg.norm(im1-im2,ord=np.inf)))
+#             ax.imshow(np.reshape(image,(nelx,nely)).T,cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+#             ax.get_xaxis().set_visible(False)
+#             ax.get_yaxis().set_visible(False)
 
-    #flip the x positions
-    circlesLR[0,:] = 2-circlesLR[0,:]
+#             img_buf = io.BytesIO()
+#             plt.savefig(img_buf, format='png')
 
-    #flip y postions
-    circlesUD[1,:] = 1-circlesUD[1,:]
+#             im = Image.open(img_buf)
+#             imageArray.append(im)
 
-    #flip diagonal
-    circlesDiagonal[0,:] = circlesLR[0,:]
-    circlesDiagonal[1,:] = circlesUD[1,:]
-
-    forcesLR = forces.copy()
-    forcesUD = forces.copy()
-    forcesDiagonal = forces.copy()
-
-    #flip the x magnitude
-    forcesLR[0,:] = -forcesLR[0,:]
-
-    #flip y magnitude
-    forcesUD[1,:] = -forcesUD[1,:]
-
-    #flip diagonal
-    forcesDiagonal[0,:] = forcesLR[0,:]
-    forcesDiagonal[1,:] = forcesUD[1,:]
-
-    #duplicate
-    formattedLR = [circlesLR,radii,forcesLR,nelx,nely,Y,C_max,S_max]
-    formattedUD = [circlesUD,radii,forcesUD,nelx,nely,Y,C_max,S_max]
-    formattedDiagonal = [circlesDiagonal,radii,forcesDiagonal,nelx,nely,Y,C_max,S_max]
-
-    return formattedLR,formattedUD,formattedDiagonal
-
-
-    
+#             plt.show()
 
 
 
