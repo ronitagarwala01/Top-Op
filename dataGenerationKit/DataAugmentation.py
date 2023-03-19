@@ -239,15 +239,34 @@ def getShiftAmount(iterationsArray,nelx,nely):
     lastIteration = iterationsArray[-1]
 
     lPad,rPad,uPad,dPad = getPadding(lastIteration,nelx,nely)
-    if(lPad == 0 and rPad == 0):
-        shiftAmountLR = 0
-    else:
-        shiftAmountLR = np.random.randint(-lPad , rPad )
 
-    if(uPad == 0 and rPad == 0):
-        shiftAmountUD = 0
-    else:
-        shiftAmountUD = np.random.randint(-uPad , dPad )
+    def randomNum(padNum1,padNum2):
+        if(padNum1 < 5):
+            randomLeft = 0
+        else:
+            randomLeft = np.random.randint(0,padNum1//2)
+
+        if(padNum2 < 5):
+
+            randomRight = 0
+        else:
+            randomRight = np.random.randint(0,padNum2//2)
+        
+        if(randomLeft == 0):
+            return randomRight
+        elif(randomRight == 0):
+            return -randomLeft
+        else:
+            if(np.random.random() < 0.5):
+                return randomRight
+            else:
+                return -randomLeft 
+
+    
+        shiftAmountLR = 0
+    
+    shiftAmountLR = randomNum(lPad , rPad )
+    shiftAmountUD = randomNum(uPad , dPad )
 
     return shiftAmountLR,shiftAmountUD
 
