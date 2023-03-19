@@ -191,8 +191,8 @@ def massopt3Dsolver(solution2d):
         vm = von_mises(u) 
         S_min = vm.vector()[:].max()
         C_min = assemble(dot(f,u)*dx)
-        C_max = C_min * 5
-        S_max = S_min * 300
+        #C_max = C_min * 5
+        #S_max = S_min * 300
         x = interpolate(solution2d, X)
 
         #iteration_count = 0
