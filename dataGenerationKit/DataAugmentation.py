@@ -375,6 +375,7 @@ def Augment_shift_AllData(pathToData,shiftTries:int = 4):
     
 if (__name__ == "__main__"):
     path = os.path.join(os.getcwd(),'Agents','100_50')#I moving your true data to a new folder and then changing this path to that new folder so we can keep track of augmented data.
-    Augment_mirror_AllData(path)
+    
     Augment_shift_AllData(path,4)
+    Augment_mirror_AllData(path)
 
