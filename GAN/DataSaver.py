@@ -1,4 +1,4 @@
-"""Library dedicated to loading the intermediate data outputed by the fenics optimizer"""
+"""Library dedicated to saving the intermediate data outputed by the fenics optimizer"""
 
 import numpy as np
 import os
@@ -25,16 +25,28 @@ def loadDataset(folder):
     dataset = []
     conditions = []
 
+    converged, nonConverged = 0, 0
+
     filesInFolder = os.listdir(folder)
     fileNames = [name for name in filesInFolder if name.startswith("Agent_")]
 
     for file in fileNames:
-        unpacked, lastX, lastDer, lastObj= getData('Agents/' + str(file))
-        
+        try:
+            unpacked, lastX, lastDer, lastObj= getData('Agents/' + str(file))
+            converged += 1
+        except:
+            print(nonConverged)
+            nonConverged += 1
+            continue
+
         dataPoint = [lastX, lastDer, lastObj]
-        
+
         dataset.append(dataPoint)
         conditions.append(unpacked)
+
+    print("converged", converged)
+    print("nonConverged", nonConverged)
+    print("total", converged + nonConverged)
 
     return dataset, conditions
  
@@ -49,17 +61,27 @@ def getData(agentFileToGet):
     FilesToGrab = os.listdir(agentFileToGet)
     iterations = []
 
+
     for fileName in FilesToGrab:
+
         if('loadConditions' in fileName):
-            loadConditions = np.load(os.path.join(agentFileToGet,fileName))
+            if fileName.startswith('loadConditions'):
+                loadConditions = np.load(os.path.join(agentFileToGet,fileName))
+            else:
+                raise AttributeError
             
         elif('iteration_' in fileName):
-            numberStart = fileName.index('iteration_')
-            number_extension = fileName[numberStart+len('iteration_'):]
-            extesionIndex = number_extension.find('.')
-            number = int(number_extension[:extesionIndex])
+            if fileName.startswith('iteration_'):
+                numberStart = fileName.index('iteration_')
+                number_extension = fileName[numberStart+len('iteration_'):]
 
-            iterations.append([number,np.load(os.path.join(agentFileToGet,fileName))])
+                extesionIndex = number_extension.find('.')
+
+                number = int(number_extension[:extesionIndex])
+
+                iterations.append([number,np.load(os.path.join(agentFileToGet,fileName))])
+            else:
+                raise AttributeError
 
     
     def sortKey(x):
@@ -125,9 +147,6 @@ def unpackIterations(iteration):
     x = iteration['a']
     derivative = iteration['b']
     obj = iteration['c']
-
-    # print(type(derivative))
-    print(derivative)
 
     x = np.reshape(x, newshape=(51, 101))
     obj = np.reshape(obj, newshape=(51, 101))
