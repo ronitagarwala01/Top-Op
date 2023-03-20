@@ -1,4 +1,4 @@
-"""Library dedicated to saving the intermediate data outputed by the fenics optimizer"""
+"""Library dedicated to loading the intermediate data outputed by the fenics optimizer"""
 
 import numpy as np
 import os
@@ -136,7 +136,7 @@ def unpackIterations(iteration):
 
 
 
-dataset, conditions = loadDataset("Agents")
+# dataset, conditions = loadDataset("Agents")
 
 # print(dataset[0][0])
 # print(dataset[0][1])
