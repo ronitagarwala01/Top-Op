@@ -281,6 +281,35 @@ def unpackIterations(iteration):
 
     return x,derivative,obj
 
+def removeEmptyFolders(dir):
+    empty, nonEmpty = 0, 0
+
+
+    filesInFolder = os.listdir(dir)
+    fileNames = [name for name in filesInFolder if name.startswith("Agent_")]
+
+    for file in fileNames:
+        try:
+            path = os.path.join(dir+ '/', file)
+            print(path)
+            os.rmdir(path)
+            print("Deleted Empty File!")
+            empty += 1
+        except OSError as error:
+            nonEmpty += 1
+            continue
+
+    if empty == 0:
+        print("No Empty Files Remaining. Congrats.")
+        print("Number of Non-Empty Folders:", nonEmpty)
+        return
+
+    print("Number of Non-Empty Folders:", nonEmpty)
+    print("Number of Empty Folders:    ", empty)
+
+    return
+
+
 
 # def saveIterationsAsGif(agentFileToGet):
 #     try:
@@ -314,6 +343,5 @@ def unpackIterations(iteration):
 #             imageArray.append(im)
 
 #             plt.show()
-
 
 
