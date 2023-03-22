@@ -1,6 +1,10 @@
 import tensorflow as tf
+import numpy as np
 
-
+FORCE_NORMILIZATION_FACTOR = 7000
+YOUNGS_MODULUS_NORMILIZATION_FACTOR = 238000000000
+COMPLIANCE_MAX_NORMILIZATION_FACTOR = 0.03
+STRESS_MAX_NORMILIZATION_FACTOR = 15000000
 
 
 class ConcatAndCrop(tf.keras.layers.Layer):
@@ -120,6 +124,122 @@ class Model_m9(tf.keras.Model):
             return self.model(data)
 
 
+class TopOptSequence:
+    """
+    Class to hold the mass minimization sequences. holds the load conditions and all iterations.
+    Inlcudes functions to convert data to model ready inputs.
+    """
+    def __init__(self,ID,formatted,x_array,numIterations,converged):
+        self.ID = ID
+        self.loadCondtions = formatted
+        self.xPhys_array = x_array
+        self.numIterations = numIterations
+        self.nelx = self.loadCondtions[3]
+        self.nely = self.loadCondtions[4]
+        self.converged = converged
+    
+    def formatLoadCondtions(self,AugmentConditions:bool = False):
+        """
+        Generates the loadcondtions image from the current sequence load conditions.
+
+        parameters:
+            - AugmentConditions: boolean to flag if the part parameters(ComplianceMax and StressMax) should be randomly augmented to a higher value.
+                - This will help the model learn that the min stress and compliance does not need to be reached.
+        
+        returns:
+            - loadConditions: an nd.array with shape (nelx+1,nely+1,6) holding the load condition image
+        """
+        circles = self.loadCondtions[0]
+        radii = self.loadCondtions[1]
+        forces = self.loadCondtions[2]
+        nelx, nely = self.loadCondtions[3], self.loadCondtions[4]
+        Youngs, C_max, S_max = self.loadCondtions[5], self.loadCondtions[6], self.loadCondtions[7]
+
+        x = np.linspace(0,2,nelx+1)
+        y = np.linspace(0,1,nely+1)
+        X,Y = np.meshgrid(x,y)
+
+        def dist(num):
+            return np.sqrt((X-circles[0][num])**2 + (Y-circles[1][num])**2) - radii[num]
+
+        circleImage = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
+        circleImage = np.where(circleImage >= 0, 0,1)
+
+        circleImage = np.reshape(circleImage.T,(nelx+1,nely+1,1))
+
+        res = min(nelx,nely)
+
+        forceImageX = np.zeros((nelx+1,nely+1,1))
+        forceImageY = np.zeros((nelx+1,nely+1,1))
+        for i in range(3):
+            fx = forces[0][i] / FORCE_NORMILIZATION_FACTOR
+            fy = forces[1][i] / FORCE_NORMILIZATION_FACTOR
+            x_coord = int(circles[0][i] * res)
+            y_coord = int(circles[1][i] * res)
+            forceImageX[x_coord,y_coord,0] = fx
+            forceImageY[x_coord,y_coord,0] = fy
+
+            
+        #print("Y.shape:",Y.shape)
+
+        Y_image = (Youngs / YOUNGS_MODULUS_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
+        c_max_image = (C_max / COMPLIANCE_MAX_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
+        s_max_image = (S_max / STRESS_MAX_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
+
+        if(AugmentConditions):
+            #increase the compliance and stress max of the given part by up to 50%
+            c_max_image = c_max_image * (np.random.random()*0.5 + 1)
+            s_max_image = s_max_image * (np.random.random()*0.5 + 1)
+
+        # print("circleImage.shape:",circleImage.shape)
+        # print("forceImageX.shape:",forceImageX.shape)
+        # print("forceImageY.shape:",forceImageY.shape)
+        # print("Y_image.shape:",Y_image.shape)
+        # print("c_max_image.shape:",c_max_image.shape)
+        # print("s_max_image.shape:",s_max_image.shape)
+
+        loadCondtionsImage = np.concatenate([circleImage,forceImageX,forceImageY,Y_image,c_max_image,s_max_image],axis=2)
+        loadCondtionsImage = np.reshape(loadCondtionsImage,(nelx+1,nely+1,6))
+        return loadCondtionsImage
+
+    def dispenceIteration(self,iterationNumber,iterationdepth:int=5,step:int=5,augmentData:bool = False):
+        iterationNumber = min(iterationNumber,self.numIterations-1)
+        StartingBlock = np.reshape(self.xPhys_array[iterationNumber],(self.nelx+1,self.nely+1,1),order='F')
+        outputParts = []
+        for i in range(iterationdepth):
+            
+            jumpIndex = min(self.numIterations-1,iterationNumber + step*(i+1))
+            outputParts.append(np.reshape(self.xPhys_array[jumpIndex],(self.nelx+1,self.nely+1,1),order='F'))
+
+        
+        formattedImage = self.formatLoadCondtions(augmentData)
+
+        return StartingBlock,formattedImage,outputParts
+
+    def dispenceFullPartIteraion(self,iterationdepth:int=5,augmentData:bool = False):
+        """
+        Dispence the starting block as the first iteration and keep the load conditions the same, but set the ouput parts as every major iteration from start to fininsh that fits into iterationDepth
+
+        Parameters:
+            - iterationDepth: number of output files to produce, should match up with the number of outputs the model has
+                - doubles as the inverse step size for selecting images, now each part will be indexed as (numIteration/iterationDepth) iterations appart.
+            - AugmentData: bool to decide if load conditions should be slightly increased when building loax condtions image.
+        """
+        StartingBlock = np.reshape(self.xPhys_array[0],(self.nelx+1,self.nely+1,1),order='F')
+
+        
+        start = self.numIterations//iterationdepth
+        steps = np.linspace(start,self.numIterations,iterationdepth,endpoint=True,dtype='int32')
+        outputParts = []
+        for i in steps:
+            
+            jumpIndex = min(self.numIterations-1, i)
+            outputParts.append(np.reshape(self.xPhys_array[jumpIndex],(self.nelx+1,self.nely+1,1),order='F'))
+
+        
+        formattedImage = self.formatLoadCondtions(augmentData)
+
+        return StartingBlock,formattedImage,outputParts
 
 
 

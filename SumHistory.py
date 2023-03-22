@@ -33,19 +33,20 @@ def plotHistory_lite(hist):
 def main():
     name = 'trainHistory_'
 
-    numHistoryFolder = 20
+    numHistoryFolder = 2
 
-    #hist1 = json.load(open(name + str(0),'r'))
+    hist1 = json.load(open(name + str(0),'r'))
 
-    # print(hist1.keys())
-    # for i in range(1,numHistoryFolder):
-    #     newHist = json.load(open(name + str(i),'r'))
-    #     for key in hist1.keys():
-    #         for val in newHist[key]:
-    #             hist1[key].append(val)
+    print(hist1.keys())
+    for i in range(1,numHistoryFolder):
+        newHist = json.load(open(name + str(i),'r'))
+        for key in hist1.keys():
+            for val in newHist[key]:
+                hist1[key].append(val)
     
-    # print(hist1)
-    plotHistory_lite(json.load(open("Model_m9_200_epoch_trainin_run_history.hist",'r')))
+    #print(hist1)
+    plotHistory_lite(hist1)
+    #plotHistory_lite(json.load(open("Model_m9_200_epoch_trainin_run_history.hist",'r')))
 
     #json.dump(hist1,open("Model_m9_200_epoch_trainin_run_history.hist",'w'))
 
