@@ -167,6 +167,61 @@ def scoreModelPrediction(formatted,part):
 
 
 
+def plotFormatVector(formatVector,res:int=100):
+    circles = formatVector[0]
+    radii = formatVector[1]
+    forces = formatVector[2]
+    nelx, nely = formatVector[3], formatVector[4]
+    Youngs, C_max, S_max = formatVector[5], formatVector[6], formatVector[7]
+    print("Youngs:",Youngs)
+    print("C_max:",C_max)
+    print("S_max:",S_max)
+    def calcRatio(a, b):
+        """
+        Finds the ratio between two numbers. Used to prevent FEniCS from freaking out.
+        Aka, in xDim, yDim, and L, W within massopt_n.py
+        """
+        gcd = np.gcd(a, b)
+
+        aReduced = a / gcd
+        bReduced = b / gcd
+        
+        return aReduced, bReduced
+
+
+    xDim,yDim = calcRatio(nelx,nely)
+    x = np.linspace(0,xDim,res,True)
+    y = np.linspace(0,yDim,res//2,True)
+
+    X,Y = np.meshgrid(x,y)
+
+    def dist(circleIndex):
+        return np.sqrt((X-circles[0][circleIndex])**2 + (Y-circles[1][circleIndex])**2) - radii[circleIndex]
+    
+    circlesMap = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
+    circlesMap = np.where(circlesMap<=0,1,0)
+
+    fig,ax = plt.subplots(1,1)
+    plt.imshow(circlesMap,cmap='gray_r')
+    MaxForce = np.max(np.abs(np.ravel(forces)))
+    maxForceLength = res//10
+    forceScale = maxForceLength/MaxForce
+
+    def plotForce(num):
+        centerX = circles[0][num] * res//2
+        centerY = circles[1][num] * res//2
+        endX = centerX - forces[0][num] * forceScale
+        endY = centerY - forces[1][num] * forceScale
+        x1 = [centerX,endX]
+        y1 = [centerY,endY]
+        ax.plot(x1,y1)
+
+    plotForce(0)
+    plotForce(1)
+    plotForce(2)
+        
+    plt.show()
+
 
 
 
