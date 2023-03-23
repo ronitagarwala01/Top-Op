@@ -122,12 +122,11 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     #print("outputs_array.shape:",outputs_array.shape)
     #print("x1.shape:",x1.shape)
     #print("x5.shape:",x5.shape)
-    numEpochs = 5
+    numEpochs = 10
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = numBatches// numEpochs
     print("Pretraining model over {} epochs.\n\tnumSamples: {}\n\tnumBatches: {}\n\tBatches per Epoch:{}\n".format(numEpochs,len(x_array),numBatches,BatchesPerEpoch))
-    
     history1 = model.fit(
         x={'x':x_array,'loadConditions':format_array},
         y=(x1,x2,x3,x4,x5),
@@ -207,15 +206,16 @@ def saveHistory(train,i):
 
 
 def main():
-    dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
-    DATA_FILE_PATH = os.path.join(dataDirectory,'correctFOrmat')
+    #dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
+    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set1\Agents"
+    DATA_FILE_PATH = os.path.join(dataDirectory,'100_50')
 
     dir_list = os.listdir(DATA_FILE_PATH)
     max_data_points = len(dir_list)
     print("Number of data points: {}".format(len(dir_list)))
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
-    MAX_BATCH_SIZE = 172
+    MAX_BATCH_SIZE = 50
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
     model,callback = getModel()
@@ -224,6 +224,7 @@ def main():
 
     print("Starting Batched Training")
     for BatchNumber in range(max_data_points//MAX_BATCH_SIZE):
+        print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
         endIndex = (BatchNumber+1)*MAX_BATCH_SIZE
         indexesForCurrentBatch = indexesList[startIndex:endIndex]
@@ -232,7 +233,7 @@ def main():
         #print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
         #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-        trainHistory = pretrainModel(model,callback,dataSet)
+        trainHistory = trainModel(model,callback,dataSet,iterationJump=10)
 
         saveHistory(trainHistory,BatchNumber)
 
