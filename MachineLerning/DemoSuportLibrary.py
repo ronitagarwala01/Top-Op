@@ -125,33 +125,6 @@ class Model_m9(tf.keras.Model):
             return self.model(data)
 
 
-def create_GIF_from_predictions(PredictedImages,nelx,nely):
-    imageArray = []
-    for i,image in enumerate(PredictedImages):
-        fig,ax = plt.subplots(1,1)
-        
-        if(i == 0):
-            ax.set_title("Iteration: {}".format(i))
-        else:
-            im1 = np.reshape(PredictedImages[i],((nelx+1)*(nely+1)))
-            im2 = np.reshape(PredictedImages[i-1],((nelx+1)*(nely+1)))
-            ax.set_title("Iteration: {}, Change: {:.5f}".format(i,np.linalg.norm(im1-im2,ord=np.inf)))
-        ax.imshow(np.reshape(image,(nelx+1,nely+1)).T,cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
-        ax.get_xaxis().set_visible(False)
-        ax.get_yaxis().set_visible(False)
-
-        img_buf = io.BytesIO()
-        plt.savefig(img_buf, format='png')
-
-        im = Image.open(img_buf)
-        imageArray.append(im)
-
-
-    im = imageArray[0]
-    im.save("ModelOutput.gif",save_all=True,append_images = imageArray,optimize=False,loop=0)
-    im.close()
-
-
 def scoreModelPrediction(formatted,part):
     """
     Take the formatted array and a part and return the current mass, stress, and compliance of the part.
@@ -222,8 +195,41 @@ def plotFormatVector(formatVector,res:int=100):
         
     plt.show()
 
+def SaveAsGif(images,nelx,nely,name:str="out"):
+    try:
+        from PIL import Image
+        import io
+    except ImportError:
+        print("Propper modules not installed.")
+        return
+    else:
+        imageArray = []
+        for i,image in enumerate(images):
+            print("{:.2f}%\t".format(100*(i/len(images))))
+            fig,ax = plt.subplots(1,1)
+            
+            if(i == 0):
+                ax.set_title("Iteration: {}".format(i))
+            else:
+                im1 = np.reshape(image,((nelx+1)*(nely+1)))
+                im2 = np.reshape(images[i-1],((nelx+1)*(nely+1)))
+                ax.set_title("Iteration: {}, Change: {:.5f}".format(i,np.linalg.norm(im1-im2,ord=np.inf)))
+            ax.imshow(np.reshape(image,(nelx+1,nely+1)).T,cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
 
+            img_buf = io.BytesIO()
+            plt.savefig(img_buf, format='png')
 
+            im = Image.open(img_buf)
+            imageArray.append(im)
+
+            #plt.show()
+        im = imageArray[0]
+        imageArray.pop(0)
+        im.save(str(name) + ".gif".format(i),save_all=True,append_images = imageArray,optimize=False,loop=0)
+        im.close()
+    
 
 
 
