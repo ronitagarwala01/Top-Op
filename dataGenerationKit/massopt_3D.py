@@ -27,8 +27,8 @@ C_max = Constant(2.0e-3)                        # Max Compliance
 S_max = Constant(3.0e+7)                        # Max Stress
 r = Constant(0.025)                             # Length Parameter for Helmholtz Filter
 b_rad = Constant(0.025)                         # Radius for boundary around circles
-radii = np.array([0.20, 0.15, 0.15])            # Radii for circles
-circle_coords = np.array([[0.67, 1.0, 1.4], [0.75, 0.25, 0.60]])
+radii = np.array([0.15, 0.15, 0.15])            # Radii for circles
+circle_coords = np.array([[0.5, 1.0, 1.5], [0.75, 0.25, 0.75]])
 loads = np.array([[15000.0, 0.0, -15000.0], [5000.0, -10000.0, 5000.0]])
 
 # Define Mesh
@@ -119,12 +119,10 @@ def generate_loads(rho):
             k=int(j-1)
             f.vector().vec().setValueLocal(2*i, F_new[0][k] / ds_[k])
             f.vector().vec().setValueLocal(2*i+1, F_new[1][k] / ds_[k])
-            f.vector().vec().setValueLocal(2*i+2, 0.0)
         else:
             f.vector().vec().setValueLocal(2*i, 0.0)
             f.vector().vec().setValueLocal(2*i+1, 0.0)
-            #f.vector().vec().setValueLocal(2*i+2, 0.0)
-    
+
     return f
 
 # SIMP Function for Intermediate Density Penalization
@@ -149,7 +147,7 @@ def von_mises(u):
     L = inner(von_Mises, v)*dx(0) + inner(von_Mises, v)*dx(4)
     A, b = assemble_system(a, L)
     stress = Function(VDG)
-    solve(A, stress.vector(), b, 'mumps')                                                              
+    solve(A, stress.vector(), b)                                                              
     return stress
 
 # RELU^2 Function for Global Stress Constraint Computation
@@ -169,7 +167,7 @@ def helmholtz_filter(rho_n):
 
       A, b = assemble_system(a, L)
       rho = Function(V)
-      solve(A, rho.vector(), b, 'mumps')
+      solve(A, rho.vector(), b)
 
       return rho
 
@@ -183,7 +181,7 @@ def forward(x):
     L = dot(f, v)*dx
     A, b = assemble_system(a, L)
     u = Function(U)
-    solve(A, u.vector(), b, 'mumps')
+    solve(A, u.vector(), b)
     return (f, u)
 
 # MAIN
@@ -191,12 +189,29 @@ if __name__ == "__main__":
     x = interpolate(Constant(0.99), X)
     (f, u) = forward(x)
     vm = von_mises(u) 
+
+    File("output/domains.pvd") << domains
+
+    FX_ = Constant((1,0))
+    FY_ = Constant((0,1))
+    FX = assemble(inner(f, FX_)*dx(1))
+    FY = assemble(inner(f, FY_)*dx(1))
+    print("FX: ", FX)
+    print("FY: ", FY)
+
     S_min = vm.vector()[:].max()
     C_min = assemble(dot(f,u)*dx)
     C_max = C_min * 5
     S_max = S_min * 300
-    
-    iteration_count = 0
+
+    print("C_min: ", C_min)
+    print("S_min: ", S_min)
+    print("Loads: ", loads)
+    print("Young's Modulus: ", Y)
+    print("C_max: ", C_max)
+    print("S_max: ", S_max)
+    print("Circle posistions: ", circle_coords)
+    print("Circle radii: ", radii)
 
     solution_list = []
     derivative_list = []
@@ -282,21 +297,19 @@ if __name__ == "__main__":
 
 
     problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-    parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 150}
+    parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 1}
 
     solver = IPOPTSolver(problem, parameters=parameters)
     rho_opt = solver.solve()
+    (f_final, u_opt) = forward(rho_opt)
+    vm_opt = von_mises(u_opt)
 
+    set_working_tape(Tape())
     massopt_3d = massopt3Dsolver(rho_opt)
-
-
-   
-
 
     File("output/final_solution2d.pvd") << rho_opt
     File("output/final_solution3d.pvd") << massopt_3d
-    File("output/von_mises.pvd") << vm
-    File("output/domains.pvd") << domains
+    File("output/von_mises.pvd") << vm_opt
 
     sol_file = File("output/solutions.pvd")
     sols = []

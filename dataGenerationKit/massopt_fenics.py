@@ -375,3 +375,32 @@ def fenicsOptimizer(problemConditions):
         return solution_list, objective_list, derivative_list, C_max, S_max, converged
 
     return main()
+
+# Utility Function
+def solution_viewer(x_array):
+    mesh = RectangleMesh(Point(0.0, 0.0), Point(2.0, 1.0), 200, 100)
+    X = FunctionSpace(mesh, 'CG', 1)
+    v2d = dof_to_vertex_map(X)
+    x_ = []
+    for iter in x_array:
+        x_.append(iter[v2d])
+
+    x_array = x_
+    x = Function(X)
+    x.vector()[:] = x_array[-1]
+
+    File("output/final_solution.pvd") << x
+    print(len(x.vector()[:]))
+
+    sol_file = File("output/solutions.pvd")
+    sols = []
+    for i in range(len(x_array)):
+        sol = Function(X)
+        sol.vector()[:] = x_array[i]
+        sols.append(sol)
+
+    for i in range(len(x_array)):
+        sols[i].rename('sols[i]', 'sols[i]')
+        sol_file << sols[i], i
+    
+    return

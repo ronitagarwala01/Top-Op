@@ -11,11 +11,11 @@ from time import perf_counter
 # Run the file after setting them, everything else is set up.
 # Honestly, running in batches of 5 might be smart. 
 # Though it really doesn't matter, since it saves after each optimization regardless
-numberOfProblemOrientations = 10000          # Circle locations, forces, etc.
+numberOfProblemOrientations = 200          # Circle locations, forces, etc.
 numberOfConditionsChanges =  1         # Young's Modulus, C_max, S_max
 
 
-def generateProblemOrientation(nelx=100, nely=50, C_max=2.0e-3, S_max=3.0e+7, Y=3.5e+11):
+def generateProblemOrientation(nelx, nely, C_max=2.0e-3, S_max=3.0e+7, Y=3.5e+11):
 
     xDim, yDim = calcRatio(nelx, nely) # Length, Width
 
@@ -115,11 +115,11 @@ def testBS():
         print("S", np.array([S_max]))
 
 
-def generateData(numOr, numCon):
+def generateData(numOr, numCon, nelx, nely):
     
     for x in range(numOr):
         print("\n\n")
-        _, formatted = generateProblemOrientation(nelx=100, nely=50)
+        _, formatted = generateProblemOrientation(nelx, nely)
 
         for y in range(numCon):
             formatted = generateProblemConditions(formatted)
@@ -143,7 +143,7 @@ def generateData(numOr, numCon):
 def extractData():
     conditions, x, der, obj = getData('Agents/40_20/Agent_370494')
 
-    # print(x)
+    solution_viewer(x) # View solution in paraview
     # lastIteration = x[-1]
     # lastIteration = np.reshape(lastIteration, newshape=(100,50))
 
@@ -164,4 +164,4 @@ def testIterLength():
 # testIterLength()
 
 
-generateData(numberOfProblemOrientations, numberOfConditionsChanges)
+generateData(numberOfProblemOrientations, numberOfConditionsChanges, 200, 100)
