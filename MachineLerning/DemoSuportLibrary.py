@@ -124,6 +124,8 @@ class Model_m9(tf.keras.Model):
         else:
             return self.model(data)
 
+def fenics_testPart(formatted,part):
+    return 0,0
 
 def scoreModelPrediction(formatted,part):
     """
@@ -132,11 +134,17 @@ def scoreModelPrediction(formatted,part):
     Uses fenics to generate the stress and compliance scores
     """
 
-    stress = 0
-    compliance = 0
+    c_max = formatted[6]
+    s_max = formatted[7]
+
+    stress,compliance = fenics_testPart(formatted,part)
+    stress = np.max(stress)
+
     mass = np.sum(np.ravel(part))
 
-    return stress,compliance,mass
+    score = mass + np.exp(compliance - c_max) + np.exp(stress)
+
+    return score
 
 
 

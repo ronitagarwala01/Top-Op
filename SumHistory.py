@@ -2,7 +2,18 @@ import numpy as np
 import json
 import matplotlib.pyplot as plt
 
-
+def softenArray(x,filterSize:int = 5):
+    n = len(x)
+    xNew = []
+    count = 1 + (filterSize*2)
+    for i in range(n):
+        v = 0
+        for j in range(i - filterSize, i+filterSize + 1):
+            index = min(n-1,max(0,j))
+            v += x[index]
+        v /= count
+        xNew.append(v)
+    return xNew
 
 def plotHistory_lite(hist):
     fig,ax = plt.subplots(1,1)
@@ -21,7 +32,7 @@ def plotHistory_lite(hist):
             normal = 1
             if(key == 'loss'):
                 normal = 5
-            ax.plot(y,np.array(hist[key])/normal,label=key)
+            ax.plot(y,np.array(softenArray(hist[key],0))/normal,label=key)
             minVal = min(hist[key])
             meanVal = np.mean(hist[key])
             maxVal = max(hist[key])
@@ -33,10 +44,10 @@ def plotHistory_lite(hist):
 def main():
     name = 'trainHistory_'
 
-    numHistoryFolder = 3
+    numHistoryFolder = 0
 
     #hist1 = json.load(open(name + str(0),'r'))
-    hist1 = json.load(open("Model_m9_370_epoch_history.hist",'r'))
+    hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
 
     print(hist1.keys())
     for i in range(0,numHistoryFolder):
@@ -49,7 +60,7 @@ def main():
     plotHistory_lite(hist1)
     #plotHistory_lite(json.load(open("Model_m9_200_epoch_trainin_run_history.hist",'r')))
 
-    #json.dump(hist1,open("Model_m9_370_epoch_history.hist",'w'))
+    #json.dump(hist1,open("Model_m9_440_epoch_history.hist",'w'))
 
 
 

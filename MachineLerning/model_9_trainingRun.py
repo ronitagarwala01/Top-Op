@@ -67,7 +67,8 @@ def getModel(resX:int=101,resY:int=51):
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(modelPath,fileSaveName),
                                                      save_weights_only=True,
                                                      verbose=1)
-    
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.0001,decay_rate=100000,decay_rate=0.96,staircase=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     print("Compiling Model")
     model.compile(  optimizer='Adam',
                     loss= tf.keras.losses.BinaryCrossentropy())
@@ -96,7 +97,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
         for i in range(len(data)):
             if(data[i].converged):
                 for j in range(data[i].numIterations):
-                    StartingBlock,formattedImage,outputParts = data[i].dispenceIteration(j,5,iterationJump,True)
+                    StartingBlock,formattedImage,outputParts = data[i].dispenceIteration(j,5,iterationJump,False)
                     loadCondtions.append(formattedImage)
                     parts.append(StartingBlock)
                     outputArrays = []
@@ -222,7 +223,7 @@ def main():
     MAX_BATCH_SIZE = 60
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
-    model,callback = getModel(81,41)
+    model,callback = getModel(121,61)
 
     print("Starting Batched Training")
     for BatchNumber in range(max_data_points//MAX_BATCH_SIZE):
