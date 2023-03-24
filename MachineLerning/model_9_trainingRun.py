@@ -43,6 +43,10 @@ def buildDataSet(indexesToGrab:list,path,dir_list):
                 print("file {} has not converged.".format(dir_list[i]))
                 nonConvergedCounter += 1
                 cvrg = False
+            elif(len(x_array) < 20):
+                print("Too few Iterations")
+                nonConvergedCounter += 1
+                cvrg = False
             else:
                 #if no error occured append that data to the data list
                 sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
@@ -51,9 +55,9 @@ def buildDataSet(indexesToGrab:list,path,dir_list):
     print(f"Out of {numPoints} data points gathered, {100*(nonConvergedCounter/numPoints)}% had not converged for a total of {nonConvergedCounter}")
     return sequenceData
         
-def getModel():
+def getModel(resX:int=101,resY:int=51):
     modelNum = 9
-    model = Model_m9()
+    model = Model_m9(resX,resY)
     fileSaveName = "Model_m{}".format(modelNum)
     
     
@@ -207,20 +211,18 @@ def saveHistory(train,i):
 
 def main():
     #dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
-    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set1\Agents"
-    DATA_FILE_PATH = os.path.join(dataDirectory,'100_50')
+    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set3\Agents"
+    DATA_FILE_PATH = os.path.join(dataDirectory,'120_60')
 
     dir_list = os.listdir(DATA_FILE_PATH)
     max_data_points = len(dir_list)
     print("Number of data points: {}".format(len(dir_list)))
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
-    MAX_BATCH_SIZE = 50
+    MAX_BATCH_SIZE = 60
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
-    model,callback = getModel()
-    pretrainHistory = []
-    trainHistory = []
+    model,callback = getModel(81,41)
 
     print("Starting Batched Training")
     for BatchNumber in range(max_data_points//MAX_BATCH_SIZE):
