@@ -11,7 +11,7 @@ from pyadjoint import ipopt
 def massopt3Dsolver(solution2d):
     L = 2.0                                         # Length
     W = 1.0                                         # Width
-    D = 0.04                                         # Depth
+    D = 0.1                                         # Depth
     p = Constant(5.0)                               # Penalization Factor for SIMP
     p_norm = Constant(8.0)                          # P-Normalization Term
     q = Constant(0.5)                               # Relaxation Factor for Stress
@@ -20,7 +20,7 @@ def massopt3Dsolver(solution2d):
     Y = Constant(2.0e+11)                           # Young Modulus
     nelx = 100                                      # Number of elements in x-direction
     nely = 50                                       # Number of elements in y-direction
-    nelz = 2                                        # Number of elements in z-direction
+    nelz = 5                                        # Number of elements in z-direction
     C_max = Constant(2.0e-3)                        # Max Compliance
     S_max = Constant(3.0e+7)                        # Max Stress
     r = Constant(0.025)                             # Length Parameter for Helmholtz Filter
