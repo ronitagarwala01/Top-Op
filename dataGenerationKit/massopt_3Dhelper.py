@@ -123,7 +123,6 @@ def massopt3Dsolver(solution2d):
                 f.vector().vec().setValueLocal(3*i+1, 0.0)
                 f.vector().vec().setValueLocal(3*i+2, 0.0)
         
-        print(f.vector()[:])
         return f
 
     # SIMP Function for Intermediate Density Penalization
@@ -182,7 +181,7 @@ def massopt3Dsolver(solution2d):
         L = dot(f, v)*dx
         A, b = assemble_system(a, L)
         u = Function(U)
-        solve(A, u.vector(), b, 'gmres', 'ilu')
+        solve(A, u.vector(), b, 'mumps')
         return (f, u)
 
     # MAIN
@@ -194,12 +193,6 @@ def massopt3Dsolver(solution2d):
         C_min = assemble(dot(f,u)*dx)
         C_max = C_min * 5
         S_max = S_min * 300
-        # x = interpolate(solution2d, X)
-        (f, u) = forward(x)                 # Forward problem
-        vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
-
-        C_max = assemble(dot(f, u)*dx)
-        S_max = vm.vector()[:].max()
 
         File("output/domains.pvd") << domains
 
