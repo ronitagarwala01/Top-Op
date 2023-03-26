@@ -146,7 +146,21 @@ def scoreModelPrediction(formatted,part):
 
     return score
 
+def doublePartSize(part,formatVector):
+    nelx, nely = formatVector[3], formatVector[4]
+    nelx *= 2
+    nely *= 2
 
+    newPart = np.zeros((nelx+1,nely+1))
+    for x in range(nelx//2):
+        for y in range(nely//2):
+            indexes = [[2*x,2*y],[2*x + 1,2*y],[2*x,2*y + 1],[2*x + 1,2*y + 1]]
+            val = part[x,y]
+            for x1,y1 in indexes:
+
+                newPart[x1,y1] = val
+    
+    return newPart
 
 def plotFormatVector(formatVector,res:int=100):
     circles = formatVector[0]
