@@ -6,8 +6,7 @@ import ufl as ufl
 from ufl import nabla_div
 from fenics_adjoint import *
 from pyadjoint import ipopt
-
-from problemStatementGenerator import calcRatio
+from DemoSuportLibrary import *
 
 def convergenceTester(problemConditions, x_sol):
 
