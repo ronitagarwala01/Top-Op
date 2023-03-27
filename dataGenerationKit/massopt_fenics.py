@@ -59,10 +59,6 @@ def fenicsOptimizer(problemConditions):
     circle_2.mark(domains, 2)
     circle_3.mark(domains, 3)
 
-    d1 = np.count_nonzero(domains.array() == 1)
-    d2 = np.count_nonzero(domains.array() == 2)
-    d3 = np.count_nonzero(domains.array() == 3)
-    
     # Define new measures associated with the interior domains
     dx = Measure('dx', domain = mesh, subdomain_data = domains)
 
@@ -195,7 +191,7 @@ def fenicsOptimizer(problemConditions):
 
     # MAIN
     def main():
-        x = interpolate(Constant(0.99), X)  # Initial value of 0.5 for each element's density
+        x = interpolate(Constant(0.99), X)  # Initial value of 0.99 for each element's density
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
