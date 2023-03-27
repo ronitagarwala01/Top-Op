@@ -196,6 +196,8 @@ def convergenceTester(problemConditions, x_sol):
         v2d = dof_to_vertex_map(X)
         x = Function(X)
         x.vector()[:] = x_sol[v2d]
+        x = interpolate(Constant(0.99), X)
+        print(x.vector()[:].max())
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 

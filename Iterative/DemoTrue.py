@@ -3,6 +3,7 @@ from matplotlib import colors
 import numpy as np
 
 from DemoSuportLibrary import *
+from fenics_tester import *
 
 import os
 from time import time
@@ -132,21 +133,26 @@ def scoreModel(TrueDataFile,model):
     trueFormatVector,TruePart,converged = loadFenicPart(TrueDataFile)
     nelx,nely = trueFormatVector[3],trueFormatVector[4]
     start = time()
-    predictions = iteratePart(model,trueFormatVector)
+    predictions = iteratePart(model,trueFormatVector,50)
 
     
     # predictionScores = []
     # for part in predictions:
     #     sol = np.reshape(part,(nelx+1,nely+1),order='F')
     #     predictionScores.append()
-    x_sol = np.reshape(predictions[-1],(nelx+1,nely+1),order='F')
+    # x_sol = np.reshape(predictions[-1],((nelx+1)*(nely+1)),order='F')
+    x_sol = .99*np.ones(((nelx+1)*(nely+1)))
     converged = False
-    #solution_list, objective_list, derivative_list, C_max, S_max, converged = convergenceTester(trueFormatVector, x_sol)
+    solution_list, objective_list, derivative_list, C_max, S_max, converged = convergenceTester(trueFormatVector, x_sol)
     end = time()
     print("\n\nDone:{}:{}".format(converged,end-start))
-    fig,ax = plt.subplots(2)
-    ax[0].imshow(np.reshape(TruePart,(nelx+1,nely+1),order='F').T)
-    ax[1].imshow(np.reshape(predictions[-1],(nelx+1,nely+1),order='F').T)
+    # fig,ax = plt.subplots(2)
+    # ax[0].imshow(np.reshape(TruePart,(nelx+1,nely+1),order='F').T)
+    # ax[1].imshow(np.reshape(predictions[-1],(nelx+1,nely+1),order='F').T)
+
+    # plt.show()
+
+    #return predictions[-1]
     
 
 
@@ -157,17 +163,20 @@ def main():
     nelx = 100
     nely = nelx//2#50
     model = getModel(nelx,nely)
-    path = r"\\wsl.localhost\Ubuntu\home\group2\Alienware Agents Set 7\100_50"
+    path = os.path.join(os.getcwd(),"Data","100_50")
+    #print(path)
     dirList = os.listdir(path)
-
-    i = 123
+    
+    i = 8
+    print(dirList[i])
     DataFile = os.path.join(path,dirList[i])
-
+    #print(DataFile)
+    
     scoreModel(DataFile,model)
 
 
-    #convergenceTester(problemConditions, x_sol)
 
-
+if(__name__ == "__main__"):
+    main()
 
 
