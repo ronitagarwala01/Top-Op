@@ -18,18 +18,17 @@ def fenicsOptimizer(problemConditions):
 
     nelx = problemConditions[3]
     nely = problemConditions[4]
-    nelz = problemConditions[5]
-    Y = problemConditions[6]
-    C_max_coeff = problemConditions[7]
-    S_max_coeff = problemConditions[8]
+    nelz = 25
+    Y = problemConditions[5]
+    C_max_coeff = problemConditions[6]
+    S_max_coeff = problemConditions[7]
     
-    L, W, D = calcRatio(nelx, nely, nelz)
-    
+    L, W = calcRatio(nelx, nely)
 
     # turn off redundant output in parallel
     # parameters["std_out_all_processes"] = False
 
-    #D = 0.5                                         # Depth
+    D = 1.0                                         # Depth
     p = Constant(5.0)                               # Penalization Factor for SIMP
     p_norm = Constant(8.0)                          # P-Normalization Term
     q = Constant(0.5)                               # Relaxation Factor for Stress
@@ -39,8 +38,7 @@ def fenicsOptimizer(problemConditions):
     b_rad = Constant(0.02)                         # Radius for boundary around circles
 
     # Define Mesh
-    mesh = RectangleMesh(Point(0.0, 0.0), Point(L, W), nelx, nely)
-    mesh3D = BoxMesh(Point(0.0, 0.0, 0.0), Point(L, W, D), nelx, nely, nelz)
+    mesh = BoxMesh(Point(0.0, 0.0, 0.0), Point(L, W, D), nelx, nely, nelz)
 
     # Create Subdomains for Circular Voids / Cylinders and their Borders
     circle_1 = CompiledSubDomain('(x[0]-x_)*(x[0]-x_) + (x[1]-y_)*(x[1]-y_) <= r*r + tol', x_=circle_coords[0][0], y_=circle_coords[1][0], r=radii[0], tol=DOLFIN_EPS)
@@ -61,10 +59,6 @@ def fenicsOptimizer(problemConditions):
     circle_2.mark(domains, 2)
     circle_3.mark(domains, 3)
 
-    d1 = np.count_nonzero(domains.array() == 1)
-    d2 = np.count_nonzero(domains.array() == 2)
-    d3 = np.count_nonzero(domains.array() == 3)
-    
     # Define new measures associated with the interior domains
     dx = Measure('dx', domain = mesh, subdomain_data = domains)
 
@@ -128,11 +122,13 @@ def fenicsOptimizer(problemConditions):
             j = domains.array()[i]
             if j in [1,2,3]:
                 k=int(j-1)
-                f.vector().vec().setValueLocal(2*i, F_new[0][k] / ds_[k])
-                f.vector().vec().setValueLocal(2*i+1, F_new[1][k] / ds_[k])
+                f.vector().vec().setValueLocal(3*i, F_new[0][k] / ds_[k])
+                f.vector().vec().setValueLocal(3*i+1, F_new[1][k] / ds_[k])
+                f.vector().vec().setValueLocal(3*i+2, 0.0)
             else:
-                f.vector().vec().setValueLocal(2*i, 0.0)
-                f.vector().vec().setValueLocal(2*i+1, 0.0)
+                f.vector().vec().setValueLocal(3*i, 0.0)
+                f.vector().vec().setValueLocal(3*i+1, 0.0)
+                f.vector().vec().setValueLocal(3*i+2, 0.0)
         
         return f
 
@@ -343,17 +339,6 @@ def fenicsOptimizer(problemConditions):
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
 
-        u = SymTransZ(rho_opt)
-
-        #converting 2d part into 3d
-        mesh3d = BoxMesh(Point(0.0, 0.0, 0.0), Point(L, W, D), nelx, nely, nelz)
-
-        v = FunctionSpace(mesh3d, 'CG', 1)
-
-        w = interpolate(u, v)
-
-
-
         converged = False
         with open('ipoptOut.txt', 'r') as f:
             last_line = f.readlines()[-1]
@@ -394,33 +379,3 @@ def fenicsOptimizer(problemConditions):
         return solution_list, objective_list, derivative_list, C_max, S_max, converged
 
     return main()
-
-    
-
-
-    # x = interpolate(Constant(0.99), X)
-    # minChange = 0.001
-    
-    # print("\n\n", problemConditions)
-
-    # iterations = [x.vector()[:]]
-
-    # for i in range(0, numIterations):
-    #     x_prev = x.vector()[:]
-    #     x = main(x, i)
-
-    #     iterArray = x.vector()[:]
-    #     iterations.append(iterArray)
-
-    #     change = np.linalg.norm(iterArray - x_prev, ord=np.inf)
-
-    #     print("\n\n", problemConditions)
-
-    #     if change < minChange:
-    #         print("\n\n\n\nCONVERGED\nCONVERGED\nCONVERGED\n\n\n\n")
-    #         break
-
-
-    # File("output2/iterations/final_solution.pvd") << x
-
-    # return iterations
