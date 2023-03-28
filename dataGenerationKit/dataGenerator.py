@@ -141,7 +141,7 @@ def generateData(numOr, numCon, nelx, nely):
 # Utility Functions
 # 
 def extractData():
-    conditions, x, der, obj = getData('Agents/40_20/Agent_370494')
+    conditions, x, der, obj, mark = getData('Agents/40_20/Agent_370494')
 
     solution_viewer(x) # View solution in paraview
     # lastIteration = x[-1]
