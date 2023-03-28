@@ -147,7 +147,7 @@ def massopt3Dsolver(solution2d):
         L = inner(von_Mises, v)*dx(0) + inner(von_Mises, v)*dx(4)
         A, b = assemble_system(a, L)
         stress = Function(VDG)
-        solve(A, stress.vector(), b, 'mumps')                                                              
+        solve(A, stress.vector(), b, 'gmres', 'hypre_euclid')                                                              
         return stress
 
     # RELU^2 Function for Global Stress Constraint Computation
@@ -167,7 +167,7 @@ def massopt3Dsolver(solution2d):
 
         A, b = assemble_system(a, L)
         rho = Function(V)
-        solve(A, rho.vector(), b, 'mumps')
+        solve(A, rho.vector(), b, 'gmres', 'hypre_euclid')
 
         return rho
 
@@ -181,7 +181,7 @@ def massopt3Dsolver(solution2d):
         L = dot(f, v)*dx
         A, b = assemble_system(a, L)
         u = Function(U)
-        solve(A, u.vector(), b, 'mumps')
+        solve(A, u.vector(), b, 'gmres', 'hypre_euclid')
         return (f, u)
 
     # MAIN
@@ -290,7 +290,7 @@ def massopt3Dsolver(solution2d):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 100}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 200}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
@@ -298,4 +298,3 @@ def massopt3Dsolver(solution2d):
 
         return rho_opt
     return main()
-    
