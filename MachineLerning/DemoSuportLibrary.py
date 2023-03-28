@@ -124,6 +124,28 @@ class Model_m9(tf.keras.Model):
         else:
             return self.model(data)
 
+def getModel(nelx,nely):
+    modelNum = 9
+    model_Full_Resolution = Model_m9(nelx+1,nely+1)
+    fileSaveName = "Model_m{}".format(modelNum)
+    
+    
+
+    modelPath = os.path.join(os.getcwd(),'ModelSave',fileSaveName)
+    
+    if(os.path.isdir(modelPath)):
+        try:
+            
+            model_Full_Resolution.load_weights(os.path.join(modelPath,fileSaveName))
+        except:
+            print("Model weights could not be loaded.")
+        else:
+            print("Model weights Loaded")
+    else:
+        print("Model file does not exist.")
+
+    return model_Full_Resolution
+
 def fenics_testPart(formatted,part):
     return 0,0
 
@@ -338,7 +360,5 @@ def unpackIterations(iteration):
     obj = iteration['c']
 
     return x,derivative,obj
-
-
 
 
