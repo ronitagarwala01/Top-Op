@@ -374,7 +374,7 @@ def fenicsOptimizer(problemConditions):
 
 # Utility Function
 def solution_viewer(x_array):
-    mesh = RectangleMesh(Point(0.0, 0.0), Point(2.0, 1.0), 200, 100)
+    mesh = RectangleMesh(Point(0.0, 0.0), Point(2.0, 1.0), 100, 50)
     X = FunctionSpace(mesh, 'CG', 1)
     v2d = dof_to_vertex_map(X)
     x_ = []
