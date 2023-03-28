@@ -1,5 +1,3 @@
-from PIL import Image
-import io
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import numpy as np
@@ -548,9 +546,9 @@ def visualizeValidation(pathToData,pointsToGrab:int = 5):
 
 def shiftLoadConditions(formatted,shiftAmountLR,shiftAmountUD):
 
-    circles = formatted[0]
-    radii = formatted[1]
-    forces = formatted[2]
+    circles = formatted[0].copy()
+    radii = formatted[1].copy()
+    forces = formatted[2].copy()
     nelx, nely = formatted[3], formatted[4]
     Y, C_max, S_max = formatted[5], formatted[6], formatted[7]
 
@@ -564,6 +562,116 @@ def shiftLoadConditions(formatted,shiftAmountLR,shiftAmountUD):
     shiftedFormat = [circles,radii,forces,nelx,nely,Y,C_max,S_max]
     #showShiftedPart(iterationsArray,nelx+1,nely+1,shiftAmountLR,shiftAmountUD)
     return shiftedFormat
+
+
+def getPadding(lastIteration,nelx,nely):
+    cutOff = 0.05
+    lastIteration = np.where(lastIteration >= cutOff,1,0)
+
+    im = np.reshape(lastIteration,(nelx,nely),order='F')
+
+    #get padding on left
+    lPad = 0
+    for x in range(0,nelx,1):
+        currentCol = im[x,:]
+        avgVal = np.mean(currentCol)
+        if(avgVal == 0):
+            lPad += 1
+        else:
+            break
+        
+    print(lPad)
+    rPad = 0
+    for x in range(nelx-1,-1,-1):
+        currentCol = im[x,:]
+        avgVal = np.mean(currentCol)
+        if(avgVal == 0):
+            rPad += 1
+        else:
+            break
+    print(rPad)
+
+    uPad = 0
+    for y in range(0,nely,1):
+        currentRow = im[:,y]
+        avgVal = np.mean(currentRow)
+        if(avgVal == 0):
+            uPad += 1
+        else:
+            break
+    print(uPad)
+
+    dPad = 0
+    for y in range(nely-1,-1,-1):
+        currentRow = im[:,y]
+        avgVal = np.mean(currentRow)
+        if(avgVal == 0):
+            dPad += 1
+        else:
+            break
+    print(dPad)
+
+    return lPad,rPad,uPad,dPad
+
+def averageArray(ar1):
+    n = ar1.shape[0]
+    newArray = np.zeros(n)
+    #print(n)
+
+    for i in range(n):
+        if (i == 0):
+            a1 = ar1[i]
+            a2 = ar1[i+1]
+            a3 = 0
+        elif(i==n-1):
+            a1 = ar1[i]
+            a2 = ar1[i-1]
+            a3 = 0
+        else:
+            a1 = ar1[i-1]
+            a2 = ar1[i]
+            a3 = ar1[i+1]
+        
+        v = (a1+a2+a3)/3
+        newArray[i] = v
+
+    return newArray
+
+def shiftImage(image,shiftLR,shiftUD):
+
+    if(shiftLR < 0):
+        while(shiftLR < 0):
+            shiftLR += 1
+            colToRepeat = image[:,0]
+            #shift over image
+            image = np.roll(image,-1,0)
+            #image[:,0] = averageArray(colToRepeat)
+    elif(shiftLR > 0):
+        while(shiftLR > 0):
+            shiftLR -= 1
+            colToRepeat = image[:,-1]
+            #shift over image
+            image = np.roll(image,1,0)
+            #image[:,-1] = averageArray(colToRepeat)
+    
+    if(shiftUD < 0):
+        while(shiftUD < 0):
+            shiftUD += 1
+            rowToRepeat = image[0,:]
+            #shift over image
+            image = np.roll(image,-1,1)
+            #image[0,:] = averageArray(rowToRepeat)
+    elif(shiftUD > 0):
+        while(shiftUD > 0):
+            shiftUD -= 1
+            rowToRepeat = image[-1,:]
+            #shift over image
+            image = np.roll(image,1,1)
+            #image[-1,:] = averageArray(rowToRepeat)
+
+
+    return image
+
 
 def scoreValidations(pathToData,pointsToGrab:int = 100, numIterations:int = 50):
     model = getModel(100,50)
@@ -633,11 +741,13 @@ def iteratePartWithShift(model,formatedVector,numIterations:int=50,shiftAmnt:int
 
     nelx = formatedVector[3]
     nely = formatedVector[4]
+    shiftAmounts = []
 
     formattedImage_array = []
-    for i in range(-shiftAmnt,shiftAmnt+1):
-        for j in range(-shiftAmnt,shiftAmnt+1):
-            shiftedVector = shiftLoadConditions(formatedVector,i,j)
+    for i in range(-shiftAmnt,shiftAmnt+1,1):
+        for j in range(-shiftAmnt,shiftAmnt+1,1):
+            shiftAmounts.append([i,j])
+            shiftedVector = shiftLoadConditions(formatedVector.copy(),i,j)
             formattedImage,StartingBlock = formatDataForModel(shiftedVector)
             formattedImage_array.append(formattedImage)
 
@@ -656,7 +766,7 @@ def iteratePartWithShift(model,formatedVector,numIterations:int=50,shiftAmnt:int
     end = time()
 
     print("{} iterations took {:.2f} seconds or about {:.5f} seconds per iteration.".format(numIterations,end-start,(end-start)/numIterations))
-    return PredictedImages
+    return PredictedImages,shiftAmounts
 
 def scoreOutputs(truePart,predictedPart_list):
 
@@ -671,23 +781,28 @@ def scoreOutputs(truePart,predictedPart_list):
 def visualizeShiftDifferences(dataPoint):
     model = getModel(100,50)
     trueFormatVector,TruePart,converged = loadFenicPart(dataPoint)
-    shiftRadius = 1
+    shiftRadius = 3
 
-    PredictedImages = iteratePartWithShift(model,trueFormatVector,shiftAmnt=shiftRadius)
-
+    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,shiftAmnt=shiftRadius)
+    #print(shiftIndexes)
 
     actualImages = []
     subImages = PredictedImages[-1].shape[0]
     for i in range(subImages):
-        part = PredictedImages[-1][i,:,:,:]
+        shiftX = shiftIndexes[i][0]
+        shiftY = shiftIndexes[i][1]
 
-        actualImages.append(np.reshape(part,(101,51)))
+        #print("{}:({},{})".format(i,shiftX,shiftY))
+        part = PredictedImages[-1][i,:,:,:]
+        part = np.reshape(part,(101,51))
+        part = shiftImage(part,-shiftX,-shiftY)
+        actualImages.append(part)
 
     truePart = np.reshape(TruePart,(101,51),order='F')
     scores = scoreOutputs(truePart,actualImages)
 
     for i in np.argsort(scores):
-        print("part {}: {:.3f}".format(i,scores[i]))
+        print("part {}: {:.3f} : ({},{})".format(i,scores[i],shiftIndexes[i][0],shiftIndexes[i][1]))
     
     
     
@@ -699,8 +814,12 @@ def visualizeShiftDifferences(dataPoint):
     for i in range(2*shiftRadius+1):
         for j in range(2*shiftRadius+1):
             index = (2*shiftRadius+1)*i + j
-            ax[i,j].imshow(actualImages[index].T,cmap='gray_r',norm=colors.Normalize(0,1))
-            ax[i,j].set_title("{}:{:.3f}".format(index,scores[index]))
+            if(i==shiftRadius and j==shiftRadius):
+                ax[i,j].imshow(truePart.T,cmap='gray_r',norm=colors.Normalize(0,1))
+                ax[i,j].set_title("True")
+            else:
+                ax[i,j].imshow(actualImages[index].T,cmap='gray_r',norm=colors.Normalize(0,1))
+                ax[i,j].set_title("{}:{:.3f}:({},{})".format(index,scores[index],shiftIndexes[index][1],shiftIndexes[index][0]))
             ax[i,j].get_xaxis().set_visible(False)
             ax[i,j].get_yaxis().set_visible(False)
 
@@ -713,8 +832,10 @@ def visualizeShiftDifferences(dataPoint):
 if(__name__ == "__main__"):
     path = r'E:\TopoptGAfileSaves\Mass minimization\AlienWareData\True\100_50_Validation'
     dataPoints = os.listdir(path)
+    i = np.random.randint(0,len(dataPoints)-1)
     #scoreValidations(path,200)
-    visualizeShiftDifferences(os.path.join(path,dataPoints[12]))
+    print(dataPoints[i])
+    visualizeShiftDifferences(os.path.join(path,dataPoints[i]))
     
     
 
