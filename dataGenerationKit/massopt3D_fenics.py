@@ -154,7 +154,7 @@ def fenicsOptimizer(problemConditions):
         L = inner(von_Mises, v)*dx(0) + inner(von_Mises, v)*dx(4)
         A, b = assemble_system(a, L)
         stress = Function(VDG)
-        solve(A, stress.vector(), b)                                                              
+        solve(A, stress.vector(), b, 'gmres', 'hypre_euclid')                                                              
         return stress
 
     # RELU^2 Function for Global Stress Constraint Computation
@@ -174,7 +174,7 @@ def fenicsOptimizer(problemConditions):
 
         A, b = assemble_system(a, L)
         rho = Function(V)
-        solve(A, rho.vector(), b)
+        solve(A, rho.vector(), b, 'gmres', 'hypre_euclid')
 
         return rho
 
@@ -188,7 +188,7 @@ def fenicsOptimizer(problemConditions):
         L = dot(f, v)*dx
         A, b = assemble_system(a, L)
         u = Function(U)
-        solve(A, u.vector(), b)
+        solve(A, u.vector(), b, 'gmres', 'hypre_euclid')
         return (f, u)
 
     # MAIN
@@ -334,7 +334,7 @@ def fenicsOptimizer(problemConditions):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 200, "output_file": 'ipoptOut.txt', "file_print_level": 3}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
