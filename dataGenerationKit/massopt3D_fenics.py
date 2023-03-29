@@ -24,11 +24,13 @@ def fenicsOptimizer(problemConditions):
     S_max_coeff = problemConditions[7]
     
     L, W = calcRatio(nelx, nely)
+    D = 1.0
+    
 
     # turn off redundant output in parallel
     # parameters["std_out_all_processes"] = False
 
-    D = 1.0                                         # Depth
+    #D = 0.5                                         # Depth
     p = Constant(5.0)                               # Penalization Factor for SIMP
     p_norm = Constant(8.0)                          # P-Normalization Term
     q = Constant(0.5)                               # Relaxation Factor for Stress
@@ -91,7 +93,7 @@ def fenicsOptimizer(problemConditions):
     def generate_loads(rho):
         F_new = np.zeros(loads.shape)
         x_c = np.zeros(loads.shape)
-        (x_,y_) = SpatialCoordinate(mesh)
+        (x_,y_,z_) = SpatialCoordinate(mesh)
 
         # Calculate center of mass 
         cm_x = assemble(rho*x_*dx)/assemble(rho*dx)
@@ -293,14 +295,6 @@ def fenicsOptimizer(problemConditions):
         #         """Return the number of components in the constraint vector (here, one)."""
         #         return 1
 
-        class SymTransZ(Expression):
-            'Given u: (x, y) --> R create v: (x, y, z) --> R, v(x, y, z) = u(x, y).'
-            def __init__(self, u):
-                self.u = u
-
-            def eval(self, values, x):
-                values[0] = self.u(x[0], x[1])
-
         # Class for Enforcing Stress Constraint
         class StressConstraint(InequalityConstraint):
             def __init__(self, S, q):
@@ -334,7 +328,7 @@ def fenicsOptimizer(problemConditions):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 200, "output_file": 'ipoptOut.txt', "file_print_level": 3}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
@@ -379,3 +373,37 @@ def fenicsOptimizer(problemConditions):
         return solution_list, objective_list, derivative_list, C_max, S_max, converged
 
     return main()
+
+# Utility Function
+def solution_viewer(x_array):
+    print(len(x_array))
+    mesh = BoxMesh(Point(0.0, 0.0, 0.0), Point(2.0, 1.0, 1.0), 100, 50, 25)
+    X = FunctionSpace(mesh, 'CG', 1)
+    v2d = dof_to_vertex_map(X)
+    # print(v2d)
+    x_ = []
+    for iter in x_array:
+        x_.append(iter[v2d])
+
+    x_array = x_
+    x = Function(X)
+    print(x_array[-1].shape)
+    print(x.vector()[:].shape)
+    x.vector()[:] = x_array[-1]
+
+    File("output/final_solution.pvd") << x
+    print(len(x.vector()[:]))
+
+    sol_file = File("output/solutions.pvd")
+    sols = []
+    for i in range(len(x_array)):
+        sol = Function(X)
+        sol.vector()[:] = x_array[i]
+        sols.append(sol)
+
+    for i in range(len(x_array)):
+        sols[i].rename('sols[i]', 'sols[i]')
+        sol_file << sols[i], i
+    
+    return
+
