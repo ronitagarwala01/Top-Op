@@ -11,7 +11,7 @@ from pyadjoint import ipopt
 def massopt3Dsolver(solution2d):
     L = 2.0                                         # Length
     W = 1.0                                         # Width
-    D = 0.5                                         # Depth
+    D = 1.0                                         # Depth
     p = Constant(5.0)                               # Penalization Factor for SIMP
     p_norm = Constant(8.0)                          # P-Normalization Term
     q = Constant(0.5)                               # Relaxation Factor for Stress
@@ -20,13 +20,13 @@ def massopt3Dsolver(solution2d):
     Y = Constant(2.0e+11)                           # Young Modulus
     nelx = 100                                      # Number of elements in x-direction
     nely = 50                                       # Number of elements in y-direction
-    nelz = 5                                        # Number of elements in z-direction
+    nelz = 25                                        # Number of elements in z-direction
     C_max = Constant(2.0e-3)                        # Max Compliance
     S_max = Constant(3.0e+7)                        # Max Stress
     r = Constant(0.025)                             # Length Parameter for Helmholtz Filter
     b_rad = Constant(0.025)                         # Radius for boundary around circles
-    radii = np.array([0.20, 0.15, 0.15])            # Radii for circles
-    circle_coords = np.array([[0.67, 1.0, 1.4], [0.75, 0.25, 0.60]])
+    radii = np.array([0.15, 0.15, 0.15])            # Radii for circles
+    circle_coords = np.array([[0.5, 1.0, 1.5], [0.75, 0.25, 0.75]])
     loads = np.array([[15000.0, 0.0, -15000.0], [5000.0, -10000.0, 5000.0]])
 
 
@@ -115,13 +115,13 @@ def massopt3Dsolver(solution2d):
             j = domains.array()[i]
             if j in [1,2,3]:
                 k=int(j-1)
-                f.vector().vec().setValueLocal(2*i, F_new[0][k] / ds_[k])
-                f.vector().vec().setValueLocal(2*i+1, F_new[1][k] / ds_[k])
-                f.vector().vec().setValueLocal(2*i+2, 0.0)
+                f.vector().vec().setValueLocal(3*i, F_new[0][k] / ds_[k])
+                f.vector().vec().setValueLocal(3*i+1, F_new[1][k] / ds_[k])
+                f.vector().vec().setValueLocal(3*i+2, 0.0)
             else:
-                f.vector().vec().setValueLocal(2*i, 0.0)
-                f.vector().vec().setValueLocal(2*i+1, 0.0)
-                f.vector().vec().setValueLocal(2*i+2, 0.0)
+                f.vector().vec().setValueLocal(3*i, 0.0)
+                f.vector().vec().setValueLocal(3*i+1, 0.0)
+                f.vector().vec().setValueLocal(3*i+2, 0.0)
         
         return f
 
@@ -147,7 +147,7 @@ def massopt3Dsolver(solution2d):
         L = inner(von_Mises, v)*dx(0) + inner(von_Mises, v)*dx(4)
         A, b = assemble_system(a, L)
         stress = Function(VDG)
-        solve(A, stress.vector(), b, 'mumps')                                                              
+        solve(A, stress.vector(), b, 'gmres', 'hypre_euclid')                                                              
         return stress
 
     # RELU^2 Function for Global Stress Constraint Computation
@@ -167,7 +167,7 @@ def massopt3Dsolver(solution2d):
 
         A, b = assemble_system(a, L)
         rho = Function(V)
-        solve(A, rho.vector(), b, 'mumps')
+        solve(A, rho.vector(), b, 'gmres', 'hypre_euclid')
 
         return rho
 
@@ -181,7 +181,7 @@ def massopt3Dsolver(solution2d):
         L = dot(f, v)*dx
         A, b = assemble_system(a, L)
         u = Function(U)
-        solve(A, u.vector(), b, 'mumps')
+        solve(A, u.vector(), b, 'gmres', 'hypre_euclid')
         return (f, u)
 
     # MAIN
@@ -191,19 +191,35 @@ def massopt3Dsolver(solution2d):
         vm = von_mises(u) 
         S_min = vm.vector()[:].max()
         C_min = assemble(dot(f,u)*dx)
-        #C_max = C_min * 5
-        #S_max = S_min * 300
-        x = interpolate(solution2d, X)
+        C_max = C_min * 5
+        S_max = S_min * 300
 
-        #iteration_count = 0
-        (f, u) = forward(x)                 # Forward problem
-        vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
+        File("output/domains.pvd") << domains
+
+        FX_ = Constant((1,0,0))
+        FY_ = Constant((0,1,0))
+        FZ_ = Constant((0,0,1))
+        FX = assemble(inner(f, FX_)*dx(1))
+        FY = assemble(inner(f, FY_)*dx(1))
+        FZ = assemble(inner(f, FZ_)*dx(1))
+        print("FX: ", FX)
+        print("FY: ", FY)
+        print("FZ: ", FZ)
 
         solution_list = []
         derivative_list = []
         def derivative_cb(j, dj, m):
             solution_list.append(m.vector()[:])
             derivative_list.append(dj.vector()[:])
+
+        print("C_min: ", C_min)
+        print("S_min: ", S_min)
+        print("Loads: ", loads)
+        print("Young's Modulus: ", Y)
+        print("C_max: ", C_max)
+        print("S_max: ", S_max)
+        print("Circle posistions: ", circle_coords)
+        print("Circle radii: ", radii)
             
         # Objective Functional to be Minimized
         J = assemble(x*dx(0))
@@ -274,14 +290,11 @@ def massopt3Dsolver(solution2d):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 200}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
-
-        
-
+        set_working_tape(Tape())
 
         return rho_opt
     return main()
-    

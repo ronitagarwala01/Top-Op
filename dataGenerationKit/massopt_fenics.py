@@ -59,10 +59,6 @@ def fenicsOptimizer(problemConditions):
     circle_2.mark(domains, 2)
     circle_3.mark(domains, 3)
 
-    d1 = np.count_nonzero(domains.array() == 1)
-    d2 = np.count_nonzero(domains.array() == 2)
-    d3 = np.count_nonzero(domains.array() == 3)
-    
     # Define new measures associated with the interior domains
     dx = Measure('dx', domain = mesh, subdomain_data = domains)
 
@@ -195,7 +191,7 @@ def fenicsOptimizer(problemConditions):
 
     # MAIN
     def main():
-        x = interpolate(Constant(0.99), X)  # Initial value of 0.5 for each element's density
+        x = interpolate(Constant(0.99), X)  # Initial value of 0.99 for each element's density
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
@@ -375,3 +371,32 @@ def fenicsOptimizer(problemConditions):
         return solution_list, objective_list, derivative_list, C_max, S_max, converged
 
     return main()
+
+# Utility Function
+def solution_viewer(x_array):
+    mesh = RectangleMesh(Point(0.0, 0.0), Point(2.0, 1.0), 100, 50)
+    X = FunctionSpace(mesh, 'CG', 1)
+    v2d = dof_to_vertex_map(X)
+    x_ = []
+    for iter in x_array:
+        x_.append(iter[v2d])
+
+    x_array = x_
+    x = Function(X)
+    x.vector()[:] = x_array[-1]
+
+    File("output/final_solution.pvd") << x
+    print(len(x.vector()[:]))
+
+    sol_file = File("output/solutions.pvd")
+    sols = []
+    for i in range(len(x_array)):
+        sol = Function(X)
+        sol.vector()[:] = x_array[i]
+        sols.append(sol)
+
+    for i in range(len(x_array)):
+        sols[i].rename('sols[i]', 'sols[i]')
+        sol_file << sols[i], i
+    
+    return
