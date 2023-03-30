@@ -213,11 +213,12 @@ def fenicsOptimizer(problemConditions):
         print("Circle posistions: ", circle_coords)
         print("Circle radii: ", radii)
 
+        solution_list_viewer = []
         solution_list = []
         objective_list = []
         derivative_list = []
         def derivative_cb(j, dj, m):
-            #solution_list.append(m.vector()[:])
+            solution_list_viewer.append(m.vector()[:])
             solution_list.append(m.compute_vertex_values())
             objective_list.append(j)
             derivative_list.append(dj.compute_vertex_values())
@@ -328,7 +329,7 @@ def fenicsOptimizer(problemConditions):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 300, "output_file": 'ipoptOut.txt', "file_print_level": 3}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
@@ -342,33 +343,24 @@ def fenicsOptimizer(problemConditions):
         (f_final, u_opt) = forward(rho_opt)
         vm_opt = von_mises(u_opt)
 
-        File("output/final_solution.pvd") << rho_opt
+        File("output/final_output.pvd") << rho_opt
         File("output/von_mises.pvd") << vm_opt
 
         sol_file = File("output/solutions.pvd")
         sols = []
-        for i in range(len(solution_list)):
+        for i in range(len(solution_list_viewer)):
             sol = Function(X)
-            sol.vector()[:] = solution_list[i]
+            sol.vector()[:] = solution_list_viewer[i]
             sols.append(sol)
 
-        for i in range(len(solution_list)):
+        for i in range(len(solution_list_viewer)):
             sols[i].rename('sols[i]', 'sols[i]')
             sol_file << sols[i], i
 
-        der_file = File("output/derivatives.pvd")
-        ders = []
-        for i in range(len(derivative_list)):
-            der = Function(X)
-            der.vector()[:] = derivative_list[i]
-            ders.append(der)
-        
-        for i in range(len(derivative_list)):
-            ders[i].rename('ders[i]', 'ders[i]')
-            der_file << ders[i], i
-
-        xdmf_filename = XDMFFile(MPI.comm_world, "output/final_solution.xdmf")
+        xdmf_filename = XDMFFile(MPI.comm_world, "output/final_output.xdmf")
         xdmf_filename.write(rho_opt)
+
+        set_working_tape(Tape())
 
         return solution_list, objective_list, derivative_list, C_max, S_max, converged
 

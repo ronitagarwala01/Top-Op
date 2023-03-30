@@ -223,7 +223,6 @@ def fenicsOptimizer(problemConditions):
         objective_list = []
         derivative_list = []
         def derivative_cb(j, dj, m):
-            #solution_list.append(m.vector()[:])
             solution_list.append(m.compute_vertex_values())
             solution_list_viewer.append(m.vector()[:])
             objective_list.append(j)
