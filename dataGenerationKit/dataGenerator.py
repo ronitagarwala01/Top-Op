@@ -12,7 +12,7 @@ from time import perf_counter
 # Run the file after setting them, everything else is set up.
 # Honestly, running in batches of 5 might be smart. 
 # Though it really doesn't matter, since it saves after each optimization regardless
-numberOfProblemOrientations = 100          # Circle locations, forces, etc.
+numberOfProblemOrientations = 10000          # Circle locations, forces, etc.
 numberOfConditionsChanges =  1         # Young's Modulus, C_max, S_max
 
 
