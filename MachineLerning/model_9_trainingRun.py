@@ -67,10 +67,10 @@ def getModel(resX:int=101,resY:int=51):
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(modelPath,fileSaveName),
                                                      save_weights_only=True,
                                                      verbose=1)
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.0001,decay_rate=100000,decay_rate=0.96,staircase=True)
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.0001,decay_steps=100000,decay_rate=0.96,staircase=True)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     print("Compiling Model")
-    model.compile(  optimizer='Adam',
+    model.compile(  optimizer=optimizer,
                     loss= tf.keras.losses.BinaryCrossentropy())
 
     if(os.path.isdir(modelPath)):
