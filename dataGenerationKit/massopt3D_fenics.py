@@ -25,19 +25,14 @@ def fenicsOptimizer(problemConditions):
     
     L, W = calcRatio(nelx, nely)
     D = 1.0
-    
 
-    # turn off redundant output in parallel
-    # parameters["std_out_all_processes"] = False
-
-    #D = 0.5                                         # Depth
     p = Constant(5.0)                               # Penalization Factor for SIMP
     p_norm = Constant(8.0)                          # P-Normalization Term
     q = Constant(0.5)                               # Relaxation Factor for Stress
     eps = Constant(1.0e-3)                          # Epsilon value for SIMP to remove singularities
     nu = Constant(0.3)                              # Poisson's Ratio
     r = Constant(0.025)                             # Length Parameter for Helmholtz Filter
-    b_rad = Constant(0.02)                         # Radius for boundary around circles
+    b_rad = Constant(0.02)                          # Radius for boundary around circles
 
     # Define Mesh
     mesh = BoxMesh(Point(0.0, 0.0, 0.0), Point(L, W, D), nelx, nely, nelz)
