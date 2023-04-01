@@ -9,7 +9,6 @@ from pyadjoint import ipopt
 
 from problemStatementGenerator import calcRatio
 
-
 def fenicsOptimizer(problemConditions):
 
     circle_coords = problemConditions[0]
