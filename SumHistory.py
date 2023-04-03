@@ -46,8 +46,8 @@ def main():
 
     numHistoryFolder = 0
 
-    #hist1 = json.load(open(name + str(0),'r'))
-    hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
+    hist1 = json.load(open(name + str(0),'r'))
+    #hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
 
     print(hist1.keys())
     for i in range(0,numHistoryFolder):

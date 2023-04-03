@@ -130,7 +130,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     #print("outputs_array.shape:",outputs_array.shape)
     #print("x1.shape:",x1.shape)
     #print("x5.shape:",x5.shape)
-    numEpochs = 30
+    numEpochs = 3
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = numBatches// numEpochs
@@ -141,7 +141,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
         validation_split = 0.1,
         epochs=numEpochs,
         shuffle=True,
-        steps_per_epoch = BatchesPerEpoch,
+        #steps_per_epoch = BatchesPerEpoch,
         callbacks = [callback])
 
     return history1
@@ -223,25 +223,30 @@ def main():
     print("Number of data points: {}".format(len(dir_list)))
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
-    MAX_BATCH_SIZE = 5
+    MAX_BATCH_SIZE = 300
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
     model,callback = getModel(121,61)
 
     print("Starting Batched Training")
-    for BatchNumber in range(max_data_points//MAX_BATCH_SIZE):
+    numBatches = max((max_data_points//MAX_BATCH_SIZE) + 1,1)
+    for BatchNumber in range(numBatches):
+
         print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
-        endIndex = (BatchNumber+1)*MAX_BATCH_SIZE
-        indexesForCurrentBatch = indexesList[startIndex:endIndex]
-        dataSet = []
-        dataSet = buildDataSet(indexesForCurrentBatch,DATA_FILE_PATH,dir_list)
-        #print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
+        endIndex = min((BatchNumber+1)*MAX_BATCH_SIZE,max_data_points-1)
+        if(startIndex >= endIndex):
+            break
+        else:
+            indexesForCurrentBatch = indexesList[startIndex:endIndex]
+            dataSet = []
+            dataSet = buildDataSet(indexesForCurrentBatch,DATA_FILE_PATH,dir_list)
+            print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
-        #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-        trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=True)
+            #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
+            trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=True)
 
-        #saveHistory(trainHistory,BatchNumber)
+            saveHistory(trainHistory,BatchNumber)
 
 def cleanData():
     dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","correctFOrmat")
