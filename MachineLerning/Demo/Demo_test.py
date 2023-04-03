@@ -837,7 +837,7 @@ def visualizeShiftDifferences(dataPoint):
 
 
 if(__name__ == "__main__"):
-    path = r'E:\TopoptGAfileSaves\Mass minimization\AlienWareData\True\100_50_Validation'
+    path = r'E:\TopoptGAfileSaves\Mass minimization\100_50_Validation'
     dataPoints = os.listdir(path)
     i = np.random.randint(0,len(dataPoints)-1)
     #scoreValidations(path,200)

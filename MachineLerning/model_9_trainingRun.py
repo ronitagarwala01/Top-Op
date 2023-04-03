@@ -67,7 +67,7 @@ def getModel(resX:int=101,resY:int=51):
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(modelPath,fileSaveName),
                                                      save_weights_only=True,
                                                      verbose=1)
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001,decay_steps=100000,decay_rate=0.9,staircase=True)
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.00001,decay_steps=100000,decay_rate=0.9,staircase=True)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     print("Compiling Model")
     model.compile(  optimizer=optimizer,
@@ -108,6 +108,13 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
                     outputArrays.append(outputBlock)
                 outputs.append(outputArrays)
                 if(pretrain == True and j > 0):
+                    #if we only want the first iteration set
+                    break
+                elif(data[i].numIterations <= iterationJump*5):
+                    #if there is less iterations than the model can train over
+                    break
+                elif(data[i].converged == False and j > 0):
+                    # if the end result of the part is invalid
                     break
         
         loadCondtions = np.array(loadCondtions)
@@ -223,7 +230,7 @@ def main():
     print("Number of data points: {}".format(len(dir_list)))
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
-    MAX_BATCH_SIZE = 300
+    MAX_BATCH_SIZE = 50
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
     model,callback = getModel(121,61)
