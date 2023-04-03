@@ -389,6 +389,7 @@ def formatDataForModel(formatVector):
     forces = formatVector[2]
     nelx, nely = formatVector[3], formatVector[4]
     Youngs, C_max, S_max = formatVector[5], formatVector[6], formatVector[7]
+    res = min(nelx,nely)
 
     x = np.linspace(0,2,nelx+1)
     y = np.linspace(0,1,nely+1)
@@ -396,13 +397,19 @@ def formatDataForModel(formatVector):
 
     def dist(num):
         return np.sqrt((X-circles[0][num])**2 + (Y-circles[1][num])**2) - radii[num]
+    
 
     circleImage = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
-    circleImage = np.where(circleImage >= 0, 0,1)
+    #circleImage = np.where(circleImage >= 0, 0,1)
+    circleImage = np.where(np.abs(circleImage) <= 0.01 , 1,0)
 
     circleImage = np.reshape(circleImage.T,(nelx+1,nely+1,1))
+    
+    #circleImage = np.zeros((nelx+1,nely+1,1))
+    circleImage[int(circles[0][0] * res),int(circles[1][0] * res)] = 1
+    circleImage[int(circles[0][1] * res),int(circles[1][1] * res)] = 1
+    circleImage[int(circles[0][2] * res),int(circles[1][2] * res)] = 1
 
-    res = min(nelx,nely)
 
     forceImageX = np.zeros((nelx+1,nely+1,1))
     forceImageY = np.zeros((nelx+1,nely+1,1))

@@ -47,9 +47,9 @@ def buildDataSet(indexesToGrab:list,path,dir_list):
                 print("Too few Iterations")
                 nonConvergedCounter += 1
                 cvrg = False
-            else:
+            #else:
                 #if no error occured append that data to the data list
-                sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
+            sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
 
     #print("100%\t\t")
     print(f"Out of {numPoints} data points gathered, {100*(nonConvergedCounter/numPoints)}% had not converged for a total of {nonConvergedCounter}")
@@ -67,7 +67,7 @@ def getModel(resX:int=101,resY:int=51):
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(modelPath,fileSaveName),
                                                      save_weights_only=True,
                                                      verbose=1)
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.0001,decay_steps=100000,decay_rate=0.96,staircase=True)
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001,decay_steps=100000,decay_rate=0.9,staircase=True)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     print("Compiling Model")
     model.compile(  optimizer=optimizer,
@@ -95,17 +95,20 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
         parts = []
         outputs = []
         for i in range(len(data)):
-            if(data[i].converged):
-                for j in range(data[i].numIterations):
+            
+            for j in range(data[i].numIterations):
+                if(data[i].numIterations > iterationJump*5):
                     StartingBlock,formattedImage,outputParts = data[i].dispenceIteration(j,5,iterationJump,False)
-                    loadCondtions.append(formattedImage)
-                    parts.append(StartingBlock)
-                    outputArrays = []
-                    for outputBlock in outputParts:
-                        outputArrays.append(outputBlock)
-                    outputs.append(outputArrays)
-                    if(pretrain == True and j > 0):
-                        break
+                else:
+                    StartingBlock,formattedImage,outputParts = data[i].dispenceFullPartIteraion(5,False)
+                loadCondtions.append(formattedImage)
+                parts.append(StartingBlock)
+                outputArrays = []
+                for outputBlock in outputParts:
+                    outputArrays.append(outputBlock)
+                outputs.append(outputArrays)
+                if(pretrain == True and j > 0):
+                    break
         
         loadCondtions = np.array(loadCondtions)
         parts = np.array(parts)
@@ -127,7 +130,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     #print("outputs_array.shape:",outputs_array.shape)
     #print("x1.shape:",x1.shape)
     #print("x5.shape:",x5.shape)
-    numEpochs = 10
+    numEpochs = 30
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = numBatches// numEpochs
@@ -179,7 +182,7 @@ def pretrainModel(model,callback,data):
     #print("outputs_array.shape:",outputs_array.shape)
     #print("x1.shape:",x1.shape)
     #print("x5.shape:",x5.shape)
-    numEpochs = 5
+    numEpochs = 30
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = max(1,numBatches// numEpochs)
@@ -212,7 +215,7 @@ def saveHistory(train,i):
 
 def main():
     #dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
-    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set3\Agents"
+    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set1\Agents"
     DATA_FILE_PATH = os.path.join(dataDirectory,'120_60')
 
     dir_list = os.listdir(DATA_FILE_PATH)
@@ -220,7 +223,7 @@ def main():
     print("Number of data points: {}".format(len(dir_list)))
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
-    MAX_BATCH_SIZE = 60
+    MAX_BATCH_SIZE = 5
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
     model,callback = getModel(121,61)
@@ -236,9 +239,9 @@ def main():
         #print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
         #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-        trainHistory = trainModel(model,callback,dataSet,iterationJump=10)
+        trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=True)
 
-        saveHistory(trainHistory,BatchNumber)
+        #saveHistory(trainHistory,BatchNumber)
 
 def cleanData():
     dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","correctFOrmat")

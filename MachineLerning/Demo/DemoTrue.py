@@ -3,7 +3,7 @@ from matplotlib import colors
 import numpy as np
 
 from DemoSuportLibrary import *
-from fenics_tester import *
+#from fenics_tester import *
 
 import os
 from time import time
@@ -141,16 +141,16 @@ def scoreModel(TrueDataFile,model):
     #     sol = np.reshape(part,(nelx+1,nely+1),order='F')
     #     predictionScores.append()
     # x_sol = np.reshape(predictions[-1],((nelx+1)*(nely+1)),order='F')
-    x_sol = .99*np.ones(((nelx+1)*(nely+1)))
-    converged = False
-    solution_list, objective_list, derivative_list, C_max, S_max, converged = convergenceTester(trueFormatVector, x_sol)
-    end = time()
-    print("\n\nDone:{}:{}".format(converged,end-start))
-    # fig,ax = plt.subplots(2)
-    # ax[0].imshow(np.reshape(TruePart,(nelx+1,nely+1),order='F').T)
-    # ax[1].imshow(np.reshape(predictions[-1],(nelx+1,nely+1),order='F').T)
+    #x_sol = .99*np.ones(((nelx+1)*(nely+1)))
+    #converged = False
+    #solution_list, objective_list, derivative_list, C_max, S_max, converged = convergenceTester(trueFormatVector, x_sol)
+    #end = time()
+    #print("\n\nDone:{}:{}".format(converged,end-start))
+    fig,ax = plt.subplots(2)
+    ax[0].imshow(np.reshape(TruePart,(nelx+1,nely+1),order='F').T)
+    ax[1].imshow(np.reshape(predictions[-1],(nelx+1,nely+1),order='F').T)
 
-    # plt.show()
+    plt.show()
 
     #return predictions[-1]
     
