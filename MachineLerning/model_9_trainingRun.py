@@ -137,7 +137,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     #print("outputs_array.shape:",outputs_array.shape)
     #print("x1.shape:",x1.shape)
     #print("x5.shape:",x5.shape)
-    numEpochs = 3
+    numEpochs = 10
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = numBatches// numEpochs
@@ -148,7 +148,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
         validation_split = 0.1,
         epochs=numEpochs,
         shuffle=True,
-        #steps_per_epoch = BatchesPerEpoch,
+        steps_per_epoch = BatchesPerEpoch, 
         callbacks = [callback])
 
     return history1
@@ -237,7 +237,7 @@ def main():
 
     print("Starting Batched Training")
     numBatches = max((max_data_points//MAX_BATCH_SIZE) + 1,1)
-    for BatchNumber in range(numBatches):
+    for BatchNumber in range(2,numBatches):
 
         print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
@@ -251,7 +251,7 @@ def main():
             print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
             #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-            trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=True)
+            trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=False)
 
             saveHistory(trainHistory,BatchNumber)
 
