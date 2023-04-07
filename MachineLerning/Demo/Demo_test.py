@@ -358,7 +358,7 @@ def genForces(f1,a1,f2,a2):
 
     return np.array([[fx_1,fx_2,fx_3],[fy_1,fy_2,fy_3]])
 
-def getModel(nelx,nely):
+def getModel(nelx:int=100,nely:int=50):
     modelNum = 9
     #model_half_Resolution = Model_m9(nelx//2+1,nely//2+1)
     model_Full_Resolution = Model_m9(nelx+1,nely+1)
