@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 import os
 import json
+from time import sleep
 
 from GetMassData import *
 from ModelData import *
@@ -141,7 +142,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = numBatches// numEpochs
-    print("Pretraining model over {} epochs.\n\tnumSamples: {}\n\tnumBatches: {}\n\tBatches per Epoch:{}\n".format(numEpochs,len(x_array),numBatches,BatchesPerEpoch))
+    print("Training model over {} epochs.\n\tnumSamples: {}\n\tnumBatches: {}\n\tBatches per Epoch:{}\n".format(numEpochs,len(x_array),numBatches,BatchesPerEpoch))
     history1 = model.fit(
         x={'x':x_array,'loadConditions':format_array},
         y=(x1,x2,x3,x4,x5),
@@ -237,7 +238,7 @@ def main():
 
     print("Starting Batched Training")
     numBatches = max((max_data_points//MAX_BATCH_SIZE) + 1,1)
-    for BatchNumber in range(2,numBatches):
+    for BatchNumber in range(16,numBatches):
 
         print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
@@ -254,6 +255,7 @@ def main():
             trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=False)
 
             saveHistory(trainHistory,BatchNumber)
+            sleep(600.0)#let my computer sleep for a few minutes before training again
 
 def cleanData():
     dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","correctFOrmat")
