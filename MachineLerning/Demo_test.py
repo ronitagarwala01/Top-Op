@@ -400,8 +400,8 @@ def formatDataForModel(formatVector):
     
 
     circleImage = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
-    #circleImage = np.where(circleImage >= 0, 0,1)
-    circleImage = np.where(np.abs(circleImage) <= 0.01 , 1,0)
+    circleImage = np.where(circleImage >= 0, 0,1)
+    #circleImage = np.where(np.abs(circleImage) <= 0.01 , 1,0)
 
     circleImage = np.reshape(circleImage.T,(nelx+1,nely+1,1))
     
@@ -841,7 +841,7 @@ if(__name__ == "__main__"):
     dataPoints = os.listdir(path)
     i = np.random.randint(0,len(dataPoints)-1)
     #scoreValidations(path,200)
-    print(dataPoints[i])
+    print(i,dataPoints[i])
     visualizeShiftDifferences(os.path.join(path,dataPoints[i]))
     
     
