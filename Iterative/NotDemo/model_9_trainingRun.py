@@ -4,99 +4,10 @@ import tensorflow as tf
 import numpy as np
 import os
 import json
+from time import sleep
 
 from GetMassData import *
 from ModelData import *
-
-FORCE_NORMILIZATION_FACTOR = 7000
-YOUNGS_MODULUS_NORMILIZATION_FACTOR = 238000000000
-COMPLIANCE_MAX_NORMILIZATION_FACTOR = 0.03
-STRESS_MAX_NORMILIZATION_FACTOR = 15000000
-
-class TopOptSequence:
-    def __init__(self,ID,formatted,x_array,numIterations,converged):
-        self.ID = ID
-        self.loadCondtions = formatted
-        self.xPhys_array = x_array
-        self.numIterations = numIterations
-        self.nelx = self.loadCondtions[3]
-        self.nely = self.loadCondtions[4]
-        self.converged = converged
-    
-    def formatLoadCondtions(self):
-        circles = self.loadCondtions[0]
-        radii = self.loadCondtions[1]
-        forces = self.loadCondtions[2]
-        nelx, nely = self.loadCondtions[3], self.loadCondtions[4]
-        Youngs, C_max, S_max = self.loadCondtions[5], self.loadCondtions[6], self.loadCondtions[7]
-
-        x = np.linspace(0,2,nelx+1)
-        y = np.linspace(0,1,nely+1)
-        X,Y = np.meshgrid(x,y)
-
-        def dist(num):
-            return np.sqrt((X-circles[0][num])**2 + (Y-circles[1][num])**2) - radii[num]
-
-        circleImage = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
-        circleImage = np.where(circleImage >= 0, 0,1)
-
-        circleImage = np.reshape(circleImage.T,(nelx+1,nely+1,1))
-
-        res = min(nelx,nely)
-
-        forceImageX = np.zeros((nelx+1,nely+1,1))
-        forceImageY = np.zeros((nelx+1,nely+1,1))
-        for i in range(3):
-            fx = forces[0][i] / FORCE_NORMILIZATION_FACTOR
-            fy = forces[1][i] / FORCE_NORMILIZATION_FACTOR
-            x_coord = int(circles[0][i] * res)
-            y_coord = int(circles[1][i] * res)
-            forceImageX[x_coord,y_coord,0] = fx
-            forceImageY[x_coord,y_coord,0] = fy
-
-            
-        #print("Y.shape:",Y.shape)
-
-        Y_image = (Youngs / YOUNGS_MODULUS_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
-        c_max_image = (C_max / COMPLIANCE_MAX_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
-        s_max_image = (S_max / STRESS_MAX_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
-
-        # print("circleImage.shape:",circleImage.shape)
-        # print("forceImageX.shape:",forceImageX.shape)
-        # print("forceImageY.shape:",forceImageY.shape)
-        # print("Y_image.shape:",Y_image.shape)
-        # print("c_max_image.shape:",c_max_image.shape)
-        # print("s_max_image.shape:",s_max_image.shape)
-
-        loadCondtionsImage = np.concatenate([circleImage,forceImageX,forceImageY,Y_image,c_max_image,s_max_image],axis=2)
-        return loadCondtionsImage
-
-    def dispenceFirstIteration(self,iterationdepth:int=5,step:int=5):
-        StartingBlock = np.reshape(self.xPhys_array[0],(self.nelx+1,self.nely+1,1),order='F')
-        outputParts = []
-        for i in range(iterationdepth):
-            
-            jumpIndex = min(self.numIterations-1,step*(i+1))
-            outputParts.append(np.reshape(self.xPhys_array[jumpIndex],(self.nelx+1,self.nely+1,1),order='F'))
-
-        
-        formattedImage = self.formatLoadCondtions()
-
-        return StartingBlock,formattedImage,outputParts
-
-    def dispenceIteration(self,iterationNumber,iterationdepth:int=5,step:int=5):
-        iterationNumber = min(iterationNumber,self.numIterations-1)
-        StartingBlock = np.reshape(self.xPhys_array[iterationNumber],(self.nelx+1,self.nely+1,1),order='F')
-        outputParts = []
-        for i in range(iterationdepth):
-            
-            jumpIndex = min(self.numIterations-1,iterationNumber + step*(i+1))
-            outputParts.append(np.reshape(self.xPhys_array[jumpIndex],(self.nelx+1,self.nely+1,1),order='F'))
-
-        
-        formattedImage = self.formatLoadCondtions()
-
-        return StartingBlock,formattedImage,outputParts
 
 
 def buildDataSet(indexesToGrab:list,path,dir_list):
@@ -133,18 +44,21 @@ def buildDataSet(indexesToGrab:list,path,dir_list):
                 print("file {} has not converged.".format(dir_list[i]))
                 nonConvergedCounter += 1
                 cvrg = False
-            else:
+            elif(len(x_array) < 20):
+                print("Too few Iterations")
+                nonConvergedCounter += 1
+                cvrg = False
+            #else:
                 #if no error occured append that data to the data list
-                sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
+            sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
 
     #print("100%\t\t")
     print(f"Out of {numPoints} data points gathered, {100*(nonConvergedCounter/numPoints)}% had not converged for a total of {nonConvergedCounter}")
     return sequenceData
         
-
-def getModel():
+def getModel(resX:int=101,resY:int=51):
     modelNum = 9
-    model = Model_m9()
+    model = Model_m9(resX,resY)
     fileSaveName = "Model_m{}".format(modelNum)
     
     
@@ -154,9 +68,10 @@ def getModel():
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(modelPath,fileSaveName),
                                                      save_weights_only=True,
                                                      verbose=1)
-    
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.00001,decay_steps=100000,decay_rate=0.9,staircase=True)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     print("Compiling Model")
-    model.compile(  optimizer='Adam',
+    model.compile(  optimizer=optimizer,
                     loss= tf.keras.losses.BinaryCrossentropy())
 
     if(os.path.isdir(modelPath)):
@@ -181,17 +96,27 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
         parts = []
         outputs = []
         for i in range(len(data)):
-            if(data[i].converged):
-                for j in range(data[i].numIterations):
-                    StartingBlock,formattedImage,outputParts = data[i].dispenceIteration(j,5,iterationJump)
-                    loadCondtions.append(formattedImage)
-                    parts.append(StartingBlock)
-                    outputArrays = []
-                    for outputBlock in outputParts:
-                        outputArrays.append(outputBlock)
-                    outputs.append(outputArrays)
-                    if(pretrain == True and j > 0):
-                        break
+            
+            for j in range(data[i].numIterations):
+                if(data[i].numIterations > iterationJump*5):
+                    StartingBlock,formattedImage,outputParts = data[i].dispenceIteration(j,5,iterationJump,False)
+                else:
+                    StartingBlock,formattedImage,outputParts = data[i].dispenceFullPartIteraion(5,False)
+                loadCondtions.append(formattedImage)
+                parts.append(StartingBlock)
+                outputArrays = []
+                for outputBlock in outputParts:
+                    outputArrays.append(outputBlock)
+                outputs.append(outputArrays)
+                if(pretrain == True and j > 0):
+                    #if we only want the first iteration set
+                    break
+                elif(data[i].numIterations <= iterationJump*5):
+                    #if there is less iterations than the model can train over
+                    break
+                elif(data[i].converged == False and j > 0):
+                    # if the end result of the part is invalid
+                    break
         
         loadCondtions = np.array(loadCondtions)
         parts = np.array(parts)
@@ -217,6 +142,58 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     BatchSize = 32 # default tensorflow batchsize
     numBatches = len(x_array) // BatchSize
     BatchesPerEpoch = numBatches// numEpochs
+    print("Training model over {} epochs.\n\tnumSamples: {}\n\tnumBatches: {}\n\tBatches per Epoch:{}\n".format(numEpochs,len(x_array),numBatches,BatchesPerEpoch))
+    history1 = model.fit(
+        x={'x':x_array,'loadConditions':format_array},
+        y=(x1,x2,x3,x4,x5),
+        validation_split = 0.1,
+        epochs=numEpochs,
+        shuffle=True,
+        steps_per_epoch = BatchesPerEpoch, 
+        callbacks = [callback])
+
+    return history1
+
+def pretrainModel(model,callback,data):
+    def createDataset():
+        loadCondtions = []
+        parts = []
+        outputs = []
+        for i in range(len(data)):
+            if(data[i].converged):
+                
+                StartingBlock,formattedImage,outputParts = data[i].dispenceFullPartIteraion(5,True)
+                loadCondtions.append(formattedImage)
+                parts.append(StartingBlock)
+                outputArrays = []
+                for outputBlock in outputParts:
+                    outputArrays.append(outputBlock)
+                outputs.append(outputArrays)
+        
+        loadCondtions = np.array(loadCondtions)
+        parts = np.array(parts)
+        outputs = np.array(outputs)
+        return loadCondtions,parts,outputs
+    
+    
+    
+    format_array,x_array,outputs_array = createDataset()
+
+    x1 = outputs_array[:,0,:,:,:]
+    x2 = outputs_array[:,1,:,:,:]
+    x3 = outputs_array[:,2,:,:,:]
+    x4 = outputs_array[:,3,:,:,:]
+    x5 = outputs_array[:,4,:,:,:]
+
+    #print("format_array.shape:",format_array.shape)
+    #print("x_array.shape:",x_array.shape)
+    #print("outputs_array.shape:",outputs_array.shape)
+    #print("x1.shape:",x1.shape)
+    #print("x5.shape:",x5.shape)
+    numEpochs = 30
+    BatchSize = 32 # default tensorflow batchsize
+    numBatches = len(x_array) // BatchSize
+    BatchesPerEpoch = max(1,numBatches// numEpochs)
     print("Pretraining model over {} epochs.\n\tnumSamples: {}\n\tnumBatches: {}\n\tBatches per Epoch:{}\n".format(numEpochs,len(x_array),numBatches,BatchesPerEpoch))
     
     history1 = model.fit(
@@ -229,6 +206,7 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
         callbacks = [callback])
 
     return history1
+ 
 
 def saveHistory(train,i):
     
@@ -243,11 +221,10 @@ def saveHistory(train,i):
     json.dump(train_history_dict,open(name,'w'))
 
 
-
-
 def main():
-    dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","JustMirrored","Agents")
-    DATA_FILE_PATH = os.path.join(dataDirectory,'100_50')
+    #dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
+    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set1\Agents"
+    DATA_FILE_PATH = os.path.join(dataDirectory,'120_60')
 
     dir_list = os.listdir(DATA_FILE_PATH)
     max_data_points = len(dir_list)
@@ -255,24 +232,30 @@ def main():
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
     MAX_BATCH_SIZE = 50
+    MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
-    model,callback = getModel()
-    pretrainHistory = []
-    trainHistory = []
+    model,callback = getModel(121,61)
 
     print("Starting Batched Training")
-    for BatchNumber in range(max_data_points//MAX_BATCH_SIZE):
+    numBatches = max((max_data_points//MAX_BATCH_SIZE) + 1,1)
+    for BatchNumber in range(16,numBatches):
+
+        print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
-        endIndex = (BatchNumber+1)*MAX_BATCH_SIZE
-        indexesForCurrentBatch = indexesList[startIndex:endIndex]
-        dataSet = []
-        dataSet = buildDataSet(indexesForCurrentBatch,DATA_FILE_PATH,dir_list)
-        #print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
+        endIndex = min((BatchNumber+1)*MAX_BATCH_SIZE,max_data_points-1)
+        if(startIndex >= endIndex):
+            break
+        else:
+            indexesForCurrentBatch = indexesList[startIndex:endIndex]
+            dataSet = []
+            dataSet = buildDataSet(indexesForCurrentBatch,DATA_FILE_PATH,dir_list)
+            print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
-        #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-        trainHistory = trainModel(model,callback,dataSet,10,pretrain=False)
+            #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
+            trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=False)
 
-        saveHistory(trainHistory,BatchNumber)
+            saveHistory(trainHistory,BatchNumber)
+            sleep(600.0)#let my computer sleep for a few minutes before training again
 
 def cleanData():
     dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","correctFOrmat")
@@ -282,37 +265,6 @@ def cleanData():
     print("There are {} files to explore.".format(numAgents))
 
     invalidAgents = []
-    for i,agent in enumerate(AgentsToGrab):
-        print("{:.1f}%\t".format(100*(i/numAgents)),end='\r')
-        agentFiles = os.listdir(os.path.join(path,agent))
-        for fileName in agentFiles:
-            if(('Invalid' in fileName) or ('NotConverged' in fileName)):
-                invalidAgents.append(agent)
-                break
-    print("100%\t\nOf the {} files scanned {} were invalid.".format(numAgents,len(invalidAgents)))
-    if(input("ENTER(y/n):") == 'Y'):   
-
-        for agent in invalidAgents:
-            agentFiles = os.listdir(os.path.join(path,agent))
-            for fileName in agentFiles:
-                fileToRemove = os.path.join(path,agent,fileName)
-                #print("removing: {}".format(fileToRemove))
-                os.remove(os.path.join(path,agent,fileName))
-            directoryToRemove = os.path.join(path,agent)
-            print("removing: {}".format(directoryToRemove))
-            os.rmdir(os.path.join(path,agent))
-    print("\nDone.")
-            
-
-def getFormatStats():
-    dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","JustMirrored","Agents")
-    path = dataDirectory#os.path.join(dataDirectory,'100_50')
-    AgentsToGrab = os.listdir(path)
-    numAgents = len(AgentsToGrab)
-    print("There are {} files to explore.".format(numAgents))
-
-    fx_array = []
-    fy_array = []
     for i,agent in enumerate(AgentsToGrab):
         print("{:.1f}%\t".format(100*(i/numAgents)),end='\r')
         agentFiles = os.listdir(os.path.join(path,agent))

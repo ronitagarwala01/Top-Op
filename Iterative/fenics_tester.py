@@ -378,18 +378,22 @@ def convergenceTester(problemConditions, x_sol):
 
 
     def getStressAndComliance():
-        v2d = dof_to_vertex_map(X)
-        x = Function(X)
-        x.vector()[:] = x_sol[v2d]
+        try:
+            v2d = dof_to_vertex_map(X)
+            x = Function(X)
+            x.vector()[:] = x_sol[v2d]
+            (f, u) = forward(x)                # Forward problem
+            vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
-        (f, u) = forward(x)                # Forward problem
-        vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
+            comp_value = assemble(dot(f, u)*dx)
 
-        comp_value = assemble(dot(f, u)*dx)
-
-        vm_max = vm.vector()[:].max() 
-
-        return comp_value, vm_max
+            vm_max = vm.vector()[:].max() 
+            set_working_tape(Tape())
+        except:
+            print("Error occured in fenics.")
+            return np.inf,np.inf
+        else:
+            return comp_value, vm_max
     return getStressAndComliance()
 
 def saveAsPVD(part,nelx:int=100,nely:int=50):
@@ -402,4 +406,4 @@ def saveAsPVD(part,nelx:int=100,nely:int=50):
     v2d = dof_to_vertex_map(X)
     x = Function(X)
     x.vector()[:] = part[v2d]
-    File("Data/final_solution.pvd") << x
+    File("Data/output_solution.pvd") << x
