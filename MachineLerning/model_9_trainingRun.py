@@ -11,16 +11,6 @@ from ModelData import *
 
 
 def buildDataSet(indexesToGrab:list,path,dir_list):
-
-    # Constants of interest
-    # DATA_FILE_PATH = path to agent files
-    # dir_List = all agent files
-    # max_data_points = total number of datapoints
-
-    
-
-    #randomize the data grabed so that the first thee datapoints aren't always in the data.
-    
     nonConvergedCounter = 0
     numPoints = len(indexesToGrab)
 
@@ -44,13 +34,13 @@ def buildDataSet(indexesToGrab:list,path,dir_list):
                 print("file {} has not converged.".format(dir_list[i]))
                 nonConvergedCounter += 1
                 cvrg = False
-            elif(len(x_array) < 20):
-                print("Too few Iterations")
-                nonConvergedCounter += 1
-                cvrg = False
-            #else:
+            # elif(len(x_array) < 20):
+            #     print("Too few Iterations")
+            #     nonConvergedCounter += 1
+            #     cvrg = False
+            else:
                 #if no error occured append that data to the data list
-            sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
+                sequenceData.append(TopOptSequence(i,formated,x_array,len(x_array),cvrg))
 
     #print("100%\t\t")
     print(f"Out of {numPoints} data points gathered, {100*(nonConvergedCounter/numPoints)}% had not converged for a total of {nonConvergedCounter}")
@@ -68,7 +58,7 @@ def getModel(resX:int=101,resY:int=51):
     cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(modelPath,fileSaveName),
                                                      save_weights_only=True,
                                                      verbose=1)
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.00001,decay_steps=100000,decay_rate=0.9,staircase=True)
+    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.001,decay_steps=100000,decay_rate=0.9,staircase=False)
     optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
     print("Compiling Model")
     model.compile(  optimizer=optimizer,
@@ -90,7 +80,7 @@ def getModel(resX:int=101,resY:int=51):
     
     return model,cp_callback
 
-def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
+def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False,validationData:dict=None):
     def createDataset():
         loadCondtions = []
         parts = []
@@ -102,12 +92,17 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
                     StartingBlock,formattedImage,outputParts = data[i].dispenceIteration(j,5,iterationJump,False)
                 else:
                     StartingBlock,formattedImage,outputParts = data[i].dispenceFullPartIteraion(5,False)
-                loadCondtions.append(formattedImage)
-                parts.append(StartingBlock)
-                outputArrays = []
-                for outputBlock in outputParts:
-                    outputArrays.append(outputBlock)
-                outputs.append(outputArrays)
+
+                # 50% chance to drop some samples past iteration 1, 
+                if(j > 1 and np.random.random() < .50):
+                    loadCondtions.append(formattedImage)
+                    parts.append(StartingBlock)
+                    outputArrays = []
+                    for outputBlock in outputParts:
+                        outputArrays.append(outputBlock)
+                    outputs.append(outputArrays)
+                
+                #break conditions in case the data is not relevant
                 if(pretrain == True and j > 0):
                     #if we only want the first iteration set
                     break
@@ -138,19 +133,32 @@ def trainModel(model,callback,data,iterationJump:int=5,pretrain:bool=False):
     #print("outputs_array.shape:",outputs_array.shape)
     #print("x1.shape:",x1.shape)
     #print("x5.shape:",x5.shape)
-    numEpochs = 10
+    numEpochs = 5
     BatchSize = 32 # default tensorflow batchsize
-    numBatches = len(x_array) // BatchSize
-    BatchesPerEpoch = numBatches// numEpochs
+    numBatches = max(1,len(x_array) // BatchSize)
+    BatchesPerEpoch = max(1,numBatches// numEpochs)
     print("Training model over {} epochs.\n\tnumSamples: {}\n\tnumBatches: {}\n\tBatches per Epoch:{}\n".format(numEpochs,len(x_array),numBatches,BatchesPerEpoch))
-    history1 = model.fit(
-        x={'x':x_array,'loadConditions':format_array},
-        y=(x1,x2,x3,x4,x5),
-        validation_split = 0.1,
-        epochs=numEpochs,
-        shuffle=True,
-        steps_per_epoch = BatchesPerEpoch, 
-        callbacks = [callback])
+
+    if(validationData == None):
+        history1 = model.fit(
+            x={'x':x_array,'loadConditions':format_array},
+            y=(x1,x2,x3,x4,x5),
+            validation_split = 0.1,
+            epochs=numEpochs,
+            shuffle=True,
+            steps_per_epoch = BatchesPerEpoch, 
+            callbacks = [callback])
+    else:
+        history1 = model.fit(
+            x={'x':x_array,'loadConditions':format_array},
+            y=(x1,x2,x3,x4,x5),
+            validation_data = ({'x':validationData['x'], 'loadConditions':validationData['loadConditions']} , 
+                               (validationData['out1'],validationData['out2'],validationData['out3'],validationData['out4'],validationData['out5'])),
+            epochs=numEpochs,
+            shuffle=True,
+            steps_per_epoch = BatchesPerEpoch, 
+            callbacks = [callback])
+        
 
     return history1
 
@@ -207,7 +215,67 @@ def pretrainModel(model,callback,data):
 
     return history1
  
+def getValidationData(path,numPoints,iterationJump:int = 5):
+    """
+    Return a set of arrays similar to the create dataset of the training function.
+    returns data in a python dict that can be passed to the trainmodel function to use as propper validation data to score the model on.
 
+    Will random take some number of sequences in the folder and then collect a random set of iterations from those sequences until it reaches numPoints
+    """
+
+    dir_list = os.listdir(path)
+    max_data_points = len(dir_list)
+    
+
+    indexesList = np.arange(max_data_points)
+    seqences = buildDataSet(indexesList,path,dir_list)
+
+    iterationsPerSequence = numPoints // len(seqences)
+
+    loadCondtions = []
+    parts = []
+    outputs = []
+    for i in range(len(seqences)):
+        chanceToSelectIteration = iterationsPerSequence / seqences[i].numIterations
+        
+        for j in range(seqences[i].numIterations):
+            if(seqences[i].numIterations > iterationJump*5):
+                StartingBlock,formattedImage,outputParts = seqences[i].dispenceIteration(j,5,iterationJump,False)
+            else:
+                StartingBlock,formattedImage,outputParts = seqences[i].dispenceFullPartIteraion(5,False)
+
+            #randomly select a few points of data from the sequence to serve as data
+            if(np.random.random() < chanceToSelectIteration):
+                loadCondtions.append(formattedImage)
+                parts.append(StartingBlock)
+                outputArrays = []
+                for outputBlock in outputParts:
+                    outputArrays.append(outputBlock)
+                outputs.append(outputArrays)
+            
+            #break conditions in case the data is not relevant
+            if(seqences[i].numIterations <= iterationJump*5):
+                #if there is less iterations than the model can train over
+                break
+            elif(seqences[i].converged == False and j > 0):
+                # if the end result of the part is invalid
+                break
+    
+    format_array = np.array(loadCondtions)
+    x_array = np.array(parts)
+    outputs_array = np.array(outputs)
+    
+    x1 = outputs_array[:,0,:,:,:]
+    x2 = outputs_array[:,1,:,:,:]
+    x3 = outputs_array[:,2,:,:,:]
+    x4 = outputs_array[:,3,:,:,:]
+    x5 = outputs_array[:,4,:,:,:]
+
+    print("The validation data has {} samples.".format(len(x_array)))
+
+    dictOfValidationData = {'loadConditions':format_array, 'x':x_array, 'out1':x1, 'out2':x2, 'out3':x3, 'out4':x4, 'out5':x5} 
+    return dictOfValidationData
+ 
 def saveHistory(train,i):
     
     # pretrain_history_dict = pretrain.history
@@ -222,23 +290,31 @@ def saveHistory(train,i):
 
 
 def main():
+    nelx = 100
+    nely = nelx//2#50
+
     #dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
-    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set1\Agents"
-    DATA_FILE_PATH = os.path.join(dataDirectory,'120_60')
+    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set4\Agents"
+    DATA_FILE_PATH = os.path.join(dataDirectory,'{}_{}'.format(nelx,nely))
 
     dir_list = os.listdir(DATA_FILE_PATH)
     max_data_points = len(dir_list)
     print("Number of data points: {}".format(len(dir_list)))
+
     indexesList = np.arange(max_data_points)
     np.random.shuffle(indexesList)
-    MAX_BATCH_SIZE = 50
+
+
+    MAX_BATCH_SIZE = 100
     MAX_BATCH_SIZE = min(MAX_BATCH_SIZE,max_data_points)
 
-    model,callback = getModel(121,61)
+    model,callback = getModel(nelx+1,nely+1)
 
-    print("Starting Batched Training")
+    validationDict = getValidationData(r'E:\TopoptGAfileSaves\Mass minimization\Training Validation\100_50',100,5)
+
     numBatches = max((max_data_points//MAX_BATCH_SIZE) + 1,1)
-    for BatchNumber in range(16,numBatches):
+    print("Starting Batched Training with {} super batches.".format(numBatches))
+    for BatchNumber in range(4,numBatches):
 
         print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
@@ -252,10 +328,11 @@ def main():
             print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
             #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-            trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=False)
+            trainHistory = trainModel(model,callback,dataSet,iterationJump=5,pretrain=False,validationData=validationDict)
 
             saveHistory(trainHistory,BatchNumber)
-            sleep(600.0)#let my computer sleep for a few minutes before training again
+    
+    print("Done.")
 
 def cleanData():
     dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization","correctFOrmat")

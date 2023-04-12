@@ -42,20 +42,20 @@ def buildModel_m9(x_inputShape = (101,51,1),LoadConditionsImage = (101,51,6),act
     conv_128_64 = tf.keras.layers.Conv2D(filters= 16, kernel_size=(3,3),padding='same',activation=activation)(conv_128_64)
     conv_64_32 = tf.keras.layers.MaxPooling2D(pool_size=(2,2),padding='same')(conv_128_64)
     conv_64_32 = tf.keras.layers.GaussianNoise(stddev=0.1)(conv_64_32)
-    conv_64_32 = tf.keras.layers.Dropout(rate=0.1)(conv_64_32)
+    conv_64_32 = tf.keras.layers.Dropout(rate=0.01)(conv_64_32)
 
     #Second convolution Layer
     conv_64_32 = tf.keras.layers.Conv2D(filters= 32, kernel_size=(3,3),padding='same',activation=activation)(conv_64_32)
     conv_64_32 = tf.keras.layers.Conv2D(filters= 32, kernel_size=(3,3),padding='same',activation=activation)(conv_64_32)
     conv_32_16 = tf.keras.layers.MaxPooling2D(pool_size=(2,2),padding='same')(conv_64_32)
     conv_32_16 = tf.keras.layers.GaussianNoise(stddev=0.1)(conv_32_16)
-    conv_32_16 = tf.keras.layers.Dropout(rate=0.1)(conv_32_16)
+    conv_32_16 = tf.keras.layers.Dropout(rate=0.01)(conv_32_16)
 
     conv_32_16 = tf.keras.layers.Conv2D(filters= 64, kernel_size=(3,3),padding='same',activation=activation)(conv_32_16)
     conv_32_16 = tf.keras.layers.Conv2D(filters= 64, kernel_size=(3,3),padding='same',activation=activation)(conv_32_16)
     conv_16_8 = tf.keras.layers.MaxPooling2D(pool_size=(2,2),padding='same')(conv_32_16)
     conv_16_8 = tf.keras.layers.GaussianNoise(stddev=0.1)(conv_16_8)
-    conv_16_8 = tf.keras.layers.Dropout(rate=0.1)(conv_16_8)
+    conv_16_8 = tf.keras.layers.Dropout(rate=0.01)(conv_16_8)
 
     conv_16_8 = tf.keras.layers.Conv2D(filters= 128, kernel_size=(3,3),padding='same',activation=activation)(conv_16_8)
     conv_16_8 = tf.keras.layers.Conv2D(filters= 128, kernel_size=(3,3),padding='same',activation=activation)(conv_16_8)
@@ -67,14 +67,14 @@ def buildModel_m9(x_inputShape = (101,51,1),LoadConditionsImage = (101,51,6),act
     convUpscale_32_16 = ConcatAndCrop(convUpscale_32_16.shape,conv_32_16.shape)(convUpscale_32_16,conv_32_16)
     convUpscale_32_16 = tf.keras.layers.Conv2D(filters = 64, kernel_size=(3,3),strides=1,padding='same',activation=activation)(convUpscale_32_16)
     convUpscale_32_16 = tf.keras.layers.Conv2D(filters = 64, kernel_size=(3,3),strides=1,padding='same',activation=activation)(convUpscale_32_16)
-    convUpscale_32_16 = tf.keras.layers.Dropout(rate=0.1)(convUpscale_32_16)
+    convUpscale_32_16 = tf.keras.layers.Dropout(rate=0.01)(convUpscale_32_16)
 
     convUpscale_64_32 = tf.keras.layers.Conv2DTranspose(filters= 32, kernel_size=(5,5),strides=2,padding='same',activation=activation)(convUpscale_32_16)
     convUpscale_64_32 = tf.keras.layers.GaussianNoise(stddev=0.1)(convUpscale_64_32)
     convUpscale_64_32 = ConcatAndCrop(convUpscale_64_32.shape,conv_64_32.shape)(convUpscale_64_32,conv_64_32)
     convUpscale_64_32 = tf.keras.layers.Conv2D(filters = 32, kernel_size=(3,3),strides=1,padding='same',activation=activation)(convUpscale_64_32)
     convUpscale_64_32 = tf.keras.layers.Conv2D(filters = 32, kernel_size=(3,3),strides=1,padding='same',activation=activation)(convUpscale_64_32)
-    convUpscale_64_32 = tf.keras.layers.Dropout(rate=0.1)(convUpscale_64_32)
+    convUpscale_64_32 = tf.keras.layers.Dropout(rate=0.01)(convUpscale_64_32)
 
     convUpscale_128_64 = tf.keras.layers.Conv2DTranspose(filters= 64, kernel_size=(5,5),strides=2,padding='same',activation=activation)(convUpscale_64_32)
     convUpscale_64_32 = tf.keras.layers.GaussianNoise(stddev=0.1)(convUpscale_64_32)
@@ -168,8 +168,8 @@ class TopOptSequence:
             return np.sqrt((X-circles[0][num])**2 + (Y-circles[1][num])**2) - radii[num]
 
         circleImage = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
-        #circleImage = np.where(circleImage >= 0, 0,1)
-        circleImage = np.where(np.abs(circleImage) <= 0.01 , 1,0)
+        circleImage = np.where(circleImage >= 0, 0,1)
+        #circleImage = np.where(np.abs(circleImage) <= 0.01 , 1,0)
 
         circleImage = np.reshape(circleImage.T,(nelx+1,nely+1,1))
 

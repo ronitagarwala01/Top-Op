@@ -44,13 +44,13 @@ def plotHistory_lite(hist):
 def main():
     name = 'trainHistory_'
 
-    numHistoryFolder = 42
+    numHistoryFolder = 23
 
-    #hist1 = json.load(open(name + str(0),'r'))
-    hist1 = json.load(open("Model_m9_withDropout_epoch_35.hist",'r'))
+    hist1 = json.load(open(name + str(0),'r'))
+    #hist1 = json.load(open("Model_m9_withDropout_epoch_35.hist",'r'))
 
     print(hist1.keys())
-    for i in range(0,numHistoryFolder):
+    for i in range(1,numHistoryFolder):
         try:
             newHist = json.load(open(name + str(i),'r'))
         except FileNotFoundError:
@@ -63,7 +63,7 @@ def main():
     plotHistory_lite(hist1)
     #plotHistory_lite(json.load(open("Model_m9_200_epoch_trainin_run_history.hist",'r')))
 
-    #json.dump(hist1,open("Model_m9_withDropout_epoch_455.hist",'w'))
+    json.dump(hist1,open("Model_m9_NewTrainingBatch_epoch110.hist",'w'))
 
 def mergeHist():
     hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
@@ -78,4 +78,5 @@ def mergeHist():
     plotHistory_lite(hist1)
 
 if(__name__ == "__main__"):
-    mergeHist()
+    #mergeHist()
+    main()

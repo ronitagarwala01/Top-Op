@@ -790,7 +790,7 @@ def visualizeShiftDifferences(dataPoint):
     trueFormatVector,TruePart,converged = loadFenicPart(dataPoint)
     shiftRadius = 3
 
-    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,shiftAmnt=shiftRadius)
+    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,numIterations=10,shiftAmnt=shiftRadius)
     #print(shiftIndexes)
 
     actualImages = []
@@ -837,7 +837,7 @@ def visualizeShiftDifferences(dataPoint):
 
 
 if(__name__ == "__main__"):
-    path = r'E:\TopoptGAfileSaves\Mass minimization\100_50_Validation'
+    path = r'E:\TopoptGAfileSaves\Mass minimization\Model score data'
     dataPoints = os.listdir(path)
     i = np.random.randint(0,len(dataPoints)-1)
     #scoreValidations(path,200)
