@@ -5,6 +5,7 @@ import numpy as np
 import os
 import json
 from time import sleep
+import shutil
 
 from GetMassData import *
 from ModelData import *
@@ -222,7 +223,8 @@ def getValidationData(path,numPoints,iterationJump:int = 5):
 
     Will random take some number of sequences in the folder and then collect a random set of iterations from those sequences until it reaches numPoints
     """
-
+    #seed the random so that the return values are the same each time
+    rng = np.random.Generator(np.random.PCG64(0))
     dir_list = os.listdir(path)
     max_data_points = len(dir_list)
     
@@ -245,7 +247,7 @@ def getValidationData(path,numPoints,iterationJump:int = 5):
                 StartingBlock,formattedImage,outputParts = seqences[i].dispenceFullPartIteraion(5,False)
 
             #randomly select a few points of data from the sequence to serve as data
-            if(np.random.random() < chanceToSelectIteration):
+            if(rng.random() < chanceToSelectIteration):
                 loadCondtions.append(formattedImage)
                 parts.append(StartingBlock)
                 outputArrays = []
@@ -288,13 +290,39 @@ def saveHistory(train,i):
     name = "trainHistory_{}".format(i)
     json.dump(train_history_dict,open(name,'w'))
 
+def moveModelCheckPoint():
+    """
+    Takes the model folder found in the current saving directory and copies the entire folder to an external folder.
+    """
+    modelPath = os.path.join(os.getcwd(), 'MachineLerning','ModelSave',"Model_m9")
+    externalFolder = r'E:\TopoptGAfileSaves\Models\Model_m9\AutoSaves'
+
+    saveName = 'Model_m9_save_'
+    currentSaves = os.listdir(externalFolder)
+    currentNum = len(currentSaves) + 1
+
+    #create new directory
+    pathToSaveTo = os.path.join(externalFolder,saveName + str(currentNum))
+    try:
+        os.makedirs(pathToSaveTo,exist_ok=False)
+    except:
+        print("Error in creating directory, folder already exists!.\n")
+        return
+    else:
+        for modelCheckPoint in os.listdir(modelPath):
+            fullFileName = os.path.join(modelPath,modelCheckPoint)
+            if(os.path.isfile(fullFileName)):
+                shutil.copy2(fullFileName,pathToSaveTo)
+
+
+
 
 def main():
     nelx = 100
     nely = nelx//2#50
 
     #dataDirectory = os.path.join("E:\TopoptGAfileSaves","Mass minimization")
-    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\Set4\Agents"
+    dataDirectory = r"E:\TopoptGAfileSaves\Mass minimization\AlienWareData\Augmented\set5\Agents"
     DATA_FILE_PATH = os.path.join(dataDirectory,'{}_{}'.format(nelx,nely))
 
     dir_list = os.listdir(DATA_FILE_PATH)
@@ -314,7 +342,7 @@ def main():
 
     numBatches = max((max_data_points//MAX_BATCH_SIZE) + 1,1)
     print("Starting Batched Training with {} super batches.".format(numBatches))
-    for BatchNumber in range(4,numBatches):
+    for BatchNumber in range(0,numBatches):
 
         print("Batch: {}".format(BatchNumber))
         startIndex = BatchNumber*MAX_BATCH_SIZE
@@ -331,6 +359,10 @@ def main():
             trainHistory = trainModel(model,callback,dataSet,iterationJump=5,pretrain=False,validationData=validationDict)
 
             saveHistory(trainHistory,BatchNumber)
+        
+        if ((BatchNumber > 0) and (BatchNumber %3 == 0)):
+            #save the current model to a new folder
+            moveModelCheckPoint()
     
     print("Done.")
 
@@ -368,5 +400,6 @@ def cleanData():
 if(__name__=="__main__"):
     main()
     #cleanData()
+    #moveModelCheckPoint()
 
 
