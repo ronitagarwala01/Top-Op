@@ -66,7 +66,6 @@ def generateProblemOrientation(nelx, nely, C_max=2.0e-3, S_max=3.0e+7, Y=3.5e+11
 
     return unpackedConditions, formattedConditions
 
-
 def generateProblemConditions(formatted):
     # formatted = [circles, radii, forces, nelx, nely, Y, C_max, S_max]
 
@@ -89,7 +88,6 @@ def generateProblemConditions(formatted):
 
     return formatted
     
-
 def generateData(nelx, nely):
     
     print("\n\n")
@@ -107,7 +105,6 @@ def generateData(nelx, nely):
     
     return solutions_list, formatted, (end-start), converged
             
-    
 def iterateShiftDifferences(formated):
 
     nelx,nely = formated[3],formated[4]
@@ -159,8 +156,6 @@ def iterateShiftDifferences(formated):
     end = perf_counter()
 
     return bestImageIterations,(end-start)
-    
-
 
 def plotFormatVector(formatVector,res:int=100,name:str='formatOut'):
     circles = formatVector[0]
@@ -204,26 +199,14 @@ def plotFormatVector(formatVector,res:int=100,name:str='formatOut'):
     plotForce(1)
     plotForce(2)
         
-    img_buf = io.BytesIO()
-    plt.savefig(img_buf, format='png')
-
-    im = Image.open(img_buf)
-
-    #plt.show()
-    im.save(str(name) + ".gif")
-    im.close()
-
-
-
-
-
-
+    
+    plt.savefig(str(name) + ".png", format='png')
 
 if(__name__ == "__main__"):
     nelx = 100
     nely = nelx//2
     solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely)
-    predisctions_list,modelTime = visualizeShiftDifferences(formatted)
+    predisctions_list,modelTime = iterateShiftDifferences(formatted)
 
     solution_asImages = []
     for i in range(len(solutions_list)):
