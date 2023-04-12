@@ -148,7 +148,7 @@ def scoreModelPredictions(formatted,part_list):
         #print("\tCompliance Max: {}".format(c_max))
         #print("\tStress Max: {}".format(s_max))
 
-        compliance,stress = convergenceTester(formatted,part_flat)
+        compliance,stress = convergenceTester(formatted,part_flat,1)
         mass = np.sum(part_flat)
 
         print("\tCompliance: {}".format(compliance))
@@ -267,7 +267,7 @@ def SaveAsGif(images,nelx,nely,name:str="out"):
                 im1 = np.reshape(image,((nelx+1)*(nely+1)))
                 im2 = np.reshape(images[i-1],((nelx+1)*(nely+1)))
                 ax.set_title("Iteration: {}, Change: {:.5f}".format(i,np.linalg.norm(im1-im2,ord=np.inf)))
-            ax.imshow(np.reshape(image,(nelx+1,nely+1)).T,cmap='gray_r',norm=colors.Normalize(vmin=0,vmax=1))
+            ax.imshow(np.reshape(image,(nelx+1,nely+1)).T,cmap='seismic',norm=colors.Normalize(vmin=0,vmax=1))
             ax.get_xaxis().set_visible(False)
             ax.get_yaxis().set_visible(False)
 
@@ -280,10 +280,10 @@ def SaveAsGif(images,nelx,nely,name:str="out"):
             #plt.show()
         im = imageArray[0]
         imageArray.pop(0)
-        im.save(str(name) + ".gif".format(i),save_all=True,append_images = imageArray,optimize=False,loop=0)
+        im.save(str(name) + ".gif".format(i),save_all=True,append_images = imageArray,optimize=False,loop=1)
         im.close()
     
-def loadFenicPart(agentFileToGet):
+def loadFenicsPart(agentFileToGet):
     """
     Grabs and unpacks the data stored inside an agent file.
     To be used in conjunction with the fenics data creation and the saving format above.
@@ -481,7 +481,7 @@ def iteratePart(model,formatVector,numIterations:int=50):
     return PredictedImages
 
 def getModelPrediction(TrueDataFile,model):
-    trueFormatVector,TruePart,converged = loadFenicPart(TrueDataFile)
+    trueFormatVector,TruePart,converged = loadFenicsPart(TrueDataFile)
     nelx,nely = trueFormatVector[3],trueFormatVector[4]
 
     predictions = iteratePart(model,trueFormatVector,50)
@@ -721,7 +721,7 @@ def scoreValidations(pathToData,pointsToGrab:int = 100, numIterations:int = 50):
     print("Collecting {} points of data.".format(pointsToGrab))
     for i in indexes:
         dataPoint = os.path.join(pathToData,dataPoints[i])
-        formated,part,converged = loadFenicPart(dataPoint)
+        formated,part,converged = loadFenicsPart(dataPoint)
         partNames.append([dataPoints[i],converged])
         dataTrue.append(np.reshape(part,(1,101,51),order="F"))
         formatImage,_ = formatDataForModel(formated)
@@ -808,10 +808,13 @@ def scoreOutputs(truePart,predictedPart_list):
 
 def visualizeShiftDifferences(dataPoint):
     model = getModel(100,50)
-    trueFormatVector,TruePart,converged = loadFenicPart(dataPoint)
+    trueFormatVector,TruePart,converged = loadFenicsPart(dataPoint)
+    print(trueFormatVector)
+    #saveAsPVD(TruePart,100,50)
     shiftRadius = 2
 
-    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,shiftAmnt=shiftRadius)
+    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,numIterations=50,shiftAmnt=shiftRadius)
+    
     #print(shiftIndexes)
 
     actualImages = []
@@ -831,7 +834,26 @@ def visualizeShiftDifferences(dataPoint):
     sortedScoreIndexes = np.argsort(scores)
     for i in sortedScoreIndexes[:(shiftRadius+1)**2]:
         print("part {}: {:.3f} : ({},{})".format(i,scores[i],shiftIndexes[i][0],shiftIndexes[i][1]))
-    
+
+    bestImage = sortedScoreIndexes[0]
+    bestImageIterations = [np.ones((101,51))]
+    for i in range(1,len(PredictedImages)):
+        shiftX = shiftIndexes[bestImage][0]
+        shiftY = shiftIndexes[bestImage][1]
+
+        #print("{}:({},{})".format(i,shiftX,shiftY))
+        part = PredictedImages[i][bestImage,:,:,:]
+        part = np.reshape(part,(101,51))
+        part = shiftImage(part,-shiftX,-shiftY)
+        bestImageIterations.append(part)
+    SaveAsGif(bestImageIterations,100,50,"modelOutput")
+
+    bestPart = np.reshape(actualImages[sortedScoreIndexes[0]],(101*51),order='F')
+    # solution_list, objective_list, derivative_list, C_max, S_max, converged = convergenceTester(trueFormatVector,bestPart,0)
+    # print(C_max)
+    # print(S_max)
+    # print(converged)
+
     return actualImages[sortedScoreIndexes[0]]
     
     
@@ -875,7 +897,7 @@ if(__name__ == "__main__"):
 
     # score = scoreModelPredictions(trueFormatVector,[part_pred,part_true])
     print("\n",i,"\n")
-    saveAsPVD(np.ravel(part,order='F'),100,50)
+    #saveAsPVD(np.ravel(part,order='F'),100,50)
     
     
 
