@@ -32,12 +32,26 @@ def plotHistory_lite(hist):
             normal = 1
             if(key == 'loss'):
                 normal = 5
-            ax.plot(y,np.array(softenArray(hist[key],0))/normal,label=key)
+            ax.plot(y,np.array(softenArray(hist[key],1))/normal,label=key)
             minVal = min(hist[key])
             meanVal = np.mean(hist[key])
             maxVal = max(hist[key])
             print("{}:\n\tmin:{}\n\tmean:{}\n\tmax:{}".format(key,minVal,meanVal,maxVal))
-    
+            if('val' in key):
+                x = hist[key]
+                a,b = np.polyfit(y,x,1)
+                #print(p)
+                #a = p[0]
+                #b = p[1]
+                x2 = np.array([0,len(hist[key])])
+                y2 = a*(x2) + b
+                #print(x2,y2)
+                ax.plot(x2,y2,label="{:.2e}".format(a))
+                print("y = ({})x + ({})".format(a,b))
+
+
+    plt.xlabel("Batches")
+    plt.ylabel("Loss")
     plt.legend()#bbox_to_anchor=(1.0, 1.0), loc='upper left')
     plt.show()
 
@@ -67,7 +81,7 @@ def main():
 
 def mergeHist():
     hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
-    h2 = json.load(open("Model_m9_withDropout_epoch_455.hist",'r'))
+    h2 = json.load(open("Model_m9_NewTrainingBatch_epoch175.hist",'r'))
 
 
     #newHist = json.load(open(name + str(i),'r'))
@@ -77,6 +91,24 @@ def mergeHist():
 
     plotHistory_lite(hist1)
 
+def dropKeys():
+    hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
+    h2 = json.load(open("Model_m9_NewTrainingBatch_epoch175.hist",'r'))
+
+    keysList = []
+    for key in hist1.keys():
+        keysList.append(str(key))
+    
+    for key in keysList:
+        if('val' in key):
+            hist1.pop(key, None)
+        else:    
+            for val in h2[key]:
+                hist1[key].append(val)
+    
+    plotHistory_lite(hist1)
+
 if(__name__ == "__main__"):
+    dropKeys()
     #mergeHist()
-    main()
+    #main()
