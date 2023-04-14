@@ -834,7 +834,45 @@ def visualizeShiftDifferences(dataPoint):
     plt.show()
         #print("File {}(converged={}) has difference {}".format(fileName,converged,diff))
 
+def scoreAllParts(path):
+    nelx = 100
+    nely = 50
+    model = getModel(nelx,nely)
 
+    agentFiles = os.listdir(path)
+
+    partsToTest = []
+    truePartsList = []
+
+    #get the data
+    for agentFileName in agentFiles:
+        dataPoint = os.path.join(path,agentFileName)
+        trueFormatVector,TruePart,converged = loadFenicPart(dataPoint)
+        formattedImage,StartingBlock = formatDataForModel(trueFormatVector)
+        print("{} : converged:{}".format(agentFileName,converged))
+
+        partsToTest.append(formattedImage)
+        truePartsList.append(TruePart)
+
+    
+
+    #set up the data to run
+    ImageToPredict = np.ones((len(partsToTest),nelx+1,nely+1,1))
+    formattedImage_array = np.concatenate(partsToTest,axis=0)
+    #PredictedImages = [ImageToPredict]
+
+    numIterations = 50
+    start = time()
+    for i in range(numIterations):
+        #use the output of the last iteration as the input for the next iteraion
+        output = model.predict({'x':ImageToPredict, 'loadConditions':formattedImage_array},verbose = 0)
+        ImageToPredict = output#[0]
+        #PredictedImages.append(ImageToPredict)
+    end = time()
+
+    print("{} iterations took {:.2f} seconds or about {:.5f} seconds per iteration.".format(numIterations,end-start,(end-start)/numIterations))
+
+    #score the model
 
 if(__name__ == "__main__"):
     path = r'E:\TopoptGAfileSaves\Mass minimization\Model score data'
