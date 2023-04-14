@@ -256,9 +256,10 @@ def SaveAsGif(images,nelx,nely,name:str="out"):
         print("Propper modules not installed.")
         return
     else:
+        print("Saving iterations as Gif.")
         imageArray = []
         for i,image in enumerate(images):
-            print("{:.2f}%\t".format(100*(i/len(images))))
+            print("{:.2f}%\t".format(100*(i/len(images))),end='\r')
             fig,ax = plt.subplots(1,1)
             
             if(i == 0):
@@ -278,6 +279,7 @@ def SaveAsGif(images,nelx,nely,name:str="out"):
             imageArray.append(im)
 
             #plt.show()
+        print("100%         \nDone.")
         im = imageArray[0]
         imageArray.pop(0)
         im.save(str(name) + ".gif".format(i),save_all=True,append_images = imageArray,optimize=False,loop=1)
@@ -910,6 +912,8 @@ def visualizeShiftDifferences(dataPoint):
     trueFormatVector,TruePart,converged = loadFenicsPart(dataPoint)
     fenicsAgentToGif(dataPoint)
 
+    
+
     print(trueFormatVector)
     plotFormatVector(trueFormatVector)
     #saveAsPVD(TruePart,100,50)
@@ -961,11 +965,31 @@ def visualizeShiftDifferences(dataPoint):
     #print("\tCompliance Max: {}".format(c_max))
     #print("\tStress Max: {}".format(s_max))
 
+    compliance,stress = convergenceTester(trueFormatVector,TruePart,1)
+    mass = np.sum(TruePart)
+    f = open("ModelComparison.txt",'w')
+
+    f.write("Circle 1: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(trueFormatVector[0][0][0],trueFormatVector[0][1][0],trueFormatVector[1][0]))
+    f.write("Circle 2: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(trueFormatVector[0][0][1],trueFormatVector[0][1][1],trueFormatVector[1][1]))
+    f.write("Circle 3: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(trueFormatVector[0][0][2],trueFormatVector[0][1][2],trueFormatVector[1][2]))
+
+    f.write("\nForce 1: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(trueFormatVector[2][0][0],trueFormatVector[2][1][0],np.sqrt(trueFormatVector[2][0][0]**2 + trueFormatVector[2][1][0]**2)))
+    f.write("Force 2: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(trueFormatVector[2][0][1],trueFormatVector[2][1][1],np.sqrt(trueFormatVector[2][0][1]**2 + trueFormatVector[2][1][1]**2)))
+    f.write("Force 3: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(trueFormatVector[2][0][2],trueFormatVector[2][1][2],np.sqrt(trueFormatVector[2][0][2]**2 + trueFormatVector[2][1][2]**2)))
+
+
+    f.write("\nFenics part:\n")
+    f.write("\tmass: {}\n".format(int(mass)))
+    f.write("\tCompliance: {:.5f}\n".format(compliance))
+    f.write("\tStress: {:.5e}\n".format(stress))
+
     compliance,stress = convergenceTester(trueFormatVector,part_flat,1)
     mass = np.sum(part_flat)
-    print("mass: {}".format(mass))
-    print("Compliance: {}".format(compliance))
-    print("Stress: {}".format(stress))
+    f.write("\nModel part:\n")
+    f.write("\tmass: {}\n".format(int(mass)))
+    f.write("\tCompliance: {:.5f}\n".format(compliance))
+    f.write("\tStress: {:.5e}\n".format(stress))
+    f.close()
 
 
     return actualImages[sortedScoreIndexes[0]]
@@ -996,7 +1020,7 @@ def visualizeShiftDifferences(dataPoint):
 
 if(__name__ == "__main__"):
     #path = r'E:\TopoptGAfileSaves\Mass minimization\AlienWareData\True\100_50_Validation'
-    path = os.path.join(os.getcwd(),'Data','100_50')
+    path = os.path.join(os.getcwd(),'Data','100_50_Validation')
     dataPoints = os.listdir(path)
     i = np.random.randint(0,len(dataPoints)-1)
     print("\n(",i,")\n")
