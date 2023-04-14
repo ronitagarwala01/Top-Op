@@ -6,12 +6,10 @@ import ufl as ufl
 from ufl import nabla_div
 from fenics_adjoint import *
 from pyadjoint import ipopt
-from DemoSuportLibrary import *
 
-def convergenceTester(problemConditions, x_sol,mode:int=0):
-    """
-    mode = 0 test for convergence
-    mode = 1 get stress and compliance"""
+from problemStatementGenerator import calcRatio
+
+def fenicsOptimizer(problemConditions):
 
     circle_coords = problemConditions[0]
     radii = problemConditions[1]
@@ -26,6 +24,7 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
     
     L, W = calcRatio(nelx, nely)
     
+
     # turn off redundant output in parallel
     # parameters["std_out_all_processes"] = False
 
@@ -60,10 +59,6 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
     circle_2.mark(domains, 2)
     circle_3.mark(domains, 3)
 
-    d1 = np.count_nonzero(domains.array() == 1)
-    d2 = np.count_nonzero(domains.array() == 2)
-    d3 = np.count_nonzero(domains.array() == 3)
-    
     # Define new measures associated with the interior domains
     dx = Measure('dx', domain = mesh, subdomain_data = domains)
 
@@ -196,11 +191,7 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
 
     # MAIN
     def main():
-        v2d = dof_to_vertex_map(X)
-        x = Function(X)
-        x.vector()[:] = x_sol[v2d]
-        x = interpolate(Constant(0.99), X)
-        print(x.vector()[:].max())
+        x = interpolate(Constant(0.99), X)  # Initial value of 0.99 for each element's density
         (f, u) = forward(x)                 # Forward problem
         vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
 
@@ -215,8 +206,8 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
 
         C_min = assemble(dot(f, u)*dx)
         S_min = vm.vector()[:].max()
-        C_max = C_max_coeff
-        S_max = S_max_coeff
+        C_max = C_min*C_max_coeff
+        S_max = S_min*S_max_coeff
 
         print("C_min: ", C_min)
         print("S_min: ", S_min)
@@ -232,7 +223,6 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
         objective_list = []
         derivative_list = []
         def derivative_cb(j, dj, m):
-            #solution_list.append(m.vector()[:])
             solution_list.append(m.compute_vertex_values())
             solution_list_viewer.append(m.vector()[:])
             objective_list.append(j)
@@ -379,39 +369,33 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
 
         return solution_list, objective_list, derivative_list, C_max, S_max, converged
 
+    return main()
 
-    def getStressAndComliance():
-        try:
-            v2d = dof_to_vertex_map(X)
-            x = Function(X)
-            x.vector()[:] = x_sol[v2d]
-            (f, u) = forward(x)                # Forward problem
-            vm = von_mises(u)                   # Calculate Von Mises Stress for outer subdomain
-
-            comp_value = assemble(dot(f, u)*dx)
-
-            vm_max = vm.vector()[:].max() 
-            set_working_tape(Tape())
-        except:
-            print("Error occured in fenics.")
-            return np.inf,np.inf
-        else:
-            return comp_value, vm_max
-        
-
-    if(mode == 0):
-        return main()
-    else:
-        return getStressAndComliance()
-
-def saveAsPVD(part,nelx:int=100,nely:int=50):
-    
-    L, W = calcRatio(nelx, nely)
-    mesh = RectangleMesh(Point(0.0, 0.0), Point(L, W), nelx, nely)
-
-    X = FunctionSpace(mesh, "Lagrange", 1)
-    
+# Utility Function
+def solution_viewer(x_array):
+    mesh = RectangleMesh(Point(0.0, 0.0), Point(2.0, 1.0), 100, 50)
+    X = FunctionSpace(mesh, 'CG', 1)
     v2d = dof_to_vertex_map(X)
+    x_ = []
+    for iter in x_array:
+        x_.append(iter[v2d])
+
+    x_array = x_
     x = Function(X)
-    x.vector()[:] = part[v2d]
-    File("Data/output_solution.pvd") << x
+    x.vector()[:] = x_array[-1]
+
+    File("output/final_solution.pvd") << x
+    print(len(x.vector()[:]))
+
+    sol_file = File("output/solutions.pvd")
+    sols = []
+    for i in range(len(x_array)):
+        sol = Function(X)
+        sol.vector()[:] = x_array[i]
+        sols.append(sol)
+
+    for i in range(len(x_array)):
+        sols[i].rename('sols[i]', 'sols[i]')
+        sol_file << sols[i], i
+    
+    return
