@@ -396,7 +396,7 @@ def convergenceTester(problemConditions, x_sol,mode:int=0):
             print("Error occured in fenics.")
             return np.inf,np.inf
         else:
-            return comp_value, vm_max
+            return abs(comp_value), abs(vm_max)
         
 
     if(mode == 0):

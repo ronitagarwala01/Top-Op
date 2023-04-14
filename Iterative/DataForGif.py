@@ -88,7 +88,7 @@ def generateProblemConditions(formatted):
 
     return formatted
     
-def generateData(nelx, nely):
+def generateData(nelx, nely, dontOptimize:bool=False):
     
     print("\n\n")
     _, formatted = generateProblemOrientation(nelx, nely)
@@ -97,11 +97,15 @@ def generateData(nelx, nely):
 
     print("Pass to fenics")
     start = perf_counter()
-    solutions_list, objective_list, derivative_list, C_max, S_max, converged = fenicsOptimizer(formatted)
+    if(not dontOptimize):
+        solutions_list, objective_list, derivative_list, C_max, S_max, converged = fenicsOptimizer(formatted)
+        formatted[6] = C_max
+        formatted[7] = S_max
+    else:
+        solutions_list = [np.ones((nelx+1) * (nely+1))]
+        converged = False
     end = perf_counter()
 
-    formatted[6] = C_max
-    formatted[7] = S_max
     
     return solutions_list, formatted, (end-start), converged
             
@@ -205,7 +209,9 @@ def plotFormatVector(formatVector,res:int=100,name:str='formatOut'):
 if(__name__ == "__main__"):
     nelx = 100
     nely = nelx//2
-    solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely)
+
+    solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely,False)
+    print(formatted)
     predisctions_list,modelTime = iterateShiftDifferences(formatted)
 
     solution_asImages = []
@@ -213,11 +219,24 @@ if(__name__ == "__main__"):
 
         solution_asImages.append(np.reshape(solutions_list[i],(nelx+1,nely+1),order='F'))
 
+    
 
     plotFormatVector(formatted)
     SaveAsGif(solution_asImages,nelx,nely,"FenicsOutput")
     SaveAsGif(predisctions_list,nelx,nely,"ModelOutput")
 
     print("\n")
-    print("Fenics took {:.2f} seconds.\nModel took {:.2f} seconds.".format(fenicsTime,modelTime))
+    print("Fenics took {:.2f} seconds.\nModel took {:.2f} seconds.\n".format(fenicsTime,modelTime))
+
+    
+    part_flat = np.ravel(predisctions_list[-1],order='F')
+
+    #print("\tCompliance Max: {}".format(c_max))
+    #print("\tStress Max: {}".format(s_max))
+
+    compliance,stress = convergenceTester(formatted,part_flat,1)
+    mass = np.sum(part_flat)
+    print("mass: {}".format(mass))
+    print("Compliance: {}".format(compliance))
+    print("Stress: {}".format(stress))
 

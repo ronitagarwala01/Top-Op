@@ -806,10 +806,112 @@ def scoreOutputs(truePart,predictedPart_list):
     
     return lossValues
 
+def plotFormatVector(formatVector,res:int=100,name:str='formatOut'):
+    circles = formatVector[0]
+    radii = formatVector[1]
+    forces = formatVector[2]
+    nelx, nely = formatVector[3], formatVector[4]
+    Youngs, C_max, S_max = formatVector[5], formatVector[6], formatVector[7]
+    print("Youngs:",Youngs)
+    print("C_max:",C_max)
+    print("S_max:",S_max)
+
+
+    xDim,yDim = calcRatio(nelx,nely)
+    x = np.linspace(0,xDim,res,True)
+    y = np.linspace(0,yDim,res//2,True)
+
+    X,Y = np.meshgrid(x,y)
+
+    def dist(circleIndex):
+        return np.sqrt((X-circles[0][circleIndex])**2 + (Y-circles[1][circleIndex])**2) - radii[circleIndex]
+    
+    circlesMap = np.minimum(dist(0),np.minimum(dist(1),dist(2)))
+    circlesMap = np.where(circlesMap<=0,1,0)
+
+    fig,ax = plt.subplots(1,1)
+    plt.imshow(circlesMap,cmap='gray_r')
+    MaxForce = np.max(np.abs(np.ravel(forces)))
+    maxForceLength = res//10
+    forceScale = maxForceLength/MaxForce
+
+    def plotForce(num):
+        centerX = circles[0][num] * res//2
+        centerY = circles[1][num] * res//2
+        endX = centerX - forces[0][num] * forceScale
+        endY = centerY - forces[1][num] * forceScale
+        x1 = [centerX,endX]
+        y1 = [centerY,endY]
+        ax.plot(x1,y1)
+
+    plotForce(0)
+    plotForce(1)
+    plotForce(2)
+        
+    
+    plt.savefig(str(name) + ".png", format='png')
+
+def fenicsAgentToGif(dataPoint):
+    """
+    Grabs and unpacks the data stored inside an agent file.
+    To be used in conjunction with the fenics data creation and the saving format above.
+
+    Returns:
+        - format vector
+        - part
+        - converged
+    """
+
+    #print(agentFileToGet)
+    FilesToGrab = os.listdir(dataPoint)
+    numberOfIterations = len(FilesToGrab) - 1
+    iterations = []
+    markName = ''
+
+
+    for fileName in FilesToGrab:
+        if('loadConditions' in fileName):
+            loadConditions = np.load(os.path.join(dataPoint,fileName))
+            #print('loadCondtions Exist')
+            markIndex = fileName.index('loadConditions')
+            if(markIndex > 0):
+                markName = fileName[:markIndex-1]
+            
+        elif('iteration_' in fileName):
+            numberStart = fileName.index('iteration_')
+            number_extension = fileName[numberStart+len('iteration_'):]
+            extesionIndex = number_extension.find('.')
+            number = int(number_extension[:extesionIndex])
+            #print(number)
+            iterations.append([number,np.load(os.path.join(dataPoint,fileName))])
+        #print(fileName)
+    
+    def sortKey(x):
+        return x[0]
+
+    iterations.sort(key=sortKey)
+
+    formated = unpackLoadConditions(loadConditions)
+    nelx,nely = formated[3],formated[4]
+    x_array = []
+    derivatives_array = []
+    objectives_array = []
+    
+    for num,arrays in iterations:
+        x,obj,der = unpackIterations(arrays)
+        x_array.append(np.reshape(x,(nelx+1,nely+1),order='F'))
+    
+    SaveAsGif(x_array,nelx,nely,'FenicsOutput')
+    
+    
+
 def visualizeShiftDifferences(dataPoint):
     model = getModel(100,50)
     trueFormatVector,TruePart,converged = loadFenicsPart(dataPoint)
+    fenicsAgentToGif(dataPoint)
+
     print(trueFormatVector)
+    plotFormatVector(trueFormatVector)
     #saveAsPVD(TruePart,100,50)
     shiftRadius = 2
 
@@ -853,6 +955,18 @@ def visualizeShiftDifferences(dataPoint):
     # print(C_max)
     # print(S_max)
     # print(converged)
+
+    part_flat = np.ravel(bestImageIterations[-1],order='F')
+
+    #print("\tCompliance Max: {}".format(c_max))
+    #print("\tStress Max: {}".format(s_max))
+
+    compliance,stress = convergenceTester(trueFormatVector,part_flat,1)
+    mass = np.sum(part_flat)
+    print("mass: {}".format(mass))
+    print("Compliance: {}".format(compliance))
+    print("Stress: {}".format(stress))
+
 
     return actualImages[sortedScoreIndexes[0]]
     
@@ -898,12 +1012,5 @@ if(__name__ == "__main__"):
     # score = scoreModelPredictions(trueFormatVector,[part_pred,part_true])
     print("\n",i,"\n")
     #saveAsPVD(np.ravel(part,order='F'),100,50)
-    
-    
-
-        
-
-
-
 
  
