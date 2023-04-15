@@ -790,7 +790,7 @@ def visualizeShiftDifferences(dataPoint):
     trueFormatVector,TruePart,converged = loadFenicPart(dataPoint)
     shiftRadius = 3
 
-    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,numIterations=10,shiftAmnt=shiftRadius)
+    PredictedImages,shiftIndexes = iteratePartWithShift(model,trueFormatVector,numIterations=50,shiftAmnt=shiftRadius)
     #print(shiftIndexes)
 
     actualImages = []

@@ -356,7 +356,7 @@ def main():
             print(len(indexesForCurrentBatch),startIndex,endIndex,len(dataSet))
 
             #pretrainHistory = trainModel(model,callback,dataSet,5,pretrain=True)
-            trainHistory = trainModel(model,callback,dataSet,iterationJump=5,pretrain=False,validationData=validationDict)
+            trainHistory = trainModel(model,callback,dataSet,iterationJump=10,pretrain=False,validationData=validationDict)
 
             saveHistory(trainHistory,BatchNumber)
         

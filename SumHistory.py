@@ -32,7 +32,7 @@ def plotHistory_lite(hist):
             normal = 1
             if(key == 'loss'):
                 normal = 5
-            ax.plot(y,np.array(softenArray(hist[key],1))/normal,label=key)
+            ax.plot(y,np.array(softenArray(hist[key],0))/normal,label=key)
             minVal = min(hist[key])
             meanVal = np.mean(hist[key])
             maxVal = max(hist[key])
@@ -61,7 +61,7 @@ def main():
     numHistoryFolder = 0
 
     #hist1 = json.load(open(name + str(0),'r'))
-    hist1 = json.load(open("Model_m9_NewTrainingBatch_epoch175.hist",'r'))
+    hist1 = json.load(open("Model_m9_NewTrainingBatch_epoch110.hist",'r'))
 
     print(hist1.keys())
     for i in range(0,numHistoryFolder):
@@ -77,11 +77,11 @@ def main():
     plotHistory_lite(hist1)
     #plotHistory_lite(json.load(open("Model_m9_200_epoch_trainin_run_history.hist",'r')))
 
-    #json.dump(hist1,open("Model_m9_NewTrainingBatch_epoch175.hist",'w'))
+    #json.dump(hist1,open("Model_m9_NewTrainingBatch_epoch_START_175_FIN_245.hist",'w'))
 
 def mergeHist():
-    hist1 = json.load(open("Model_m9_440_epoch_history.hist",'r'))
-    h2 = json.load(open("Model_m9_NewTrainingBatch_epoch175.hist",'r'))
+    hist1 = json.load(open("Model_m9_NewTrainingBatch_epoch110.hist",'r'))
+    h2 = json.load(open("Model_m9_NewTrainingBatch_epoch_START_175_FIN_245.hist",'r'))
 
 
     #newHist = json.load(open(name + str(i),'r'))
@@ -109,6 +109,6 @@ def dropKeys():
     plotHistory_lite(hist1)
 
 if(__name__ == "__main__"):
-    dropKeys()
-    #mergeHist()
+    #dropKeys()
+    mergeHist()
     #main()

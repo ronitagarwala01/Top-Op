@@ -193,11 +193,11 @@ class TopOptSequence:
         s_max_image = (S_max / STRESS_MAX_NORMILIZATION_FACTOR )*np.ones((nelx+1,nely+1,1))
 
         if(AugmentConditions):
-            #increase the compliance and stress max of the given part by up to 50%
+            #increase the compliance and stress max of the given part by up to 500%
             if(np.random.random() >= 0.5):
-                c_max_image = c_max_image * (np.random.random()*0.5 + 1)
+                c_max_image = c_max_image * (np.random.random()*4 + 1)
             else:
-                s_max_image = s_max_image * (np.random.random()*0.5 + 1)
+                s_max_image = s_max_image * (np.random.random()*4 + 1)
 
         # print("circleImage.shape:",circleImage.shape)
         # print("forceImageX.shape:",forceImageX.shape)
