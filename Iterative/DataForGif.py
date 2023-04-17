@@ -5,6 +5,7 @@ from massopt_fenics import *
 import numpy as np
 import io
 import os
+import json
 
 from PIL import Image
 from time import perf_counter
@@ -301,6 +302,7 @@ def main(size:int=100):
     plotFormatVector(formatted)
     SaveAsGif(solution_asImages,nelx,nely,"FenicsOutput")
     SaveAsGif(predictions_list,nelx,nely,"ModelOutput")
+    json.dump(saveStatsForEachIteration(predictions_list,formatted),open(os.path.join(agentFolderPath,"modelStatsOverIteration.json"),'w'))
     os.chdir(cwd)
 
     print("\n")
@@ -326,6 +328,10 @@ def main(size:int=100):
     f.write("\nForce 1: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][0],formatted[2][1][0],np.sqrt(formatted[2][0][0]**2 + formatted[2][1][0]**2)))
     f.write("Force 2: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][1],formatted[2][1][1],np.sqrt(formatted[2][0][1]**2 + formatted[2][1][1]**2)))
     f.write("Force 3: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][2],formatted[2][1][2],np.sqrt(formatted[2][0][2]**2 + formatted[2][1][2]**2)))
+
+    f.write("\nYoung's Modulus: {:.5e}\n".format(formatted[5]))
+    f.write("\nCompliance: {:.5f}\n".format(formatted[6]))
+    f.write("\nStress: {:.5e}\n".format(formatted[7]))
 
 
     f.write("\nFenics part:\n")
@@ -353,8 +359,8 @@ def main(size:int=100):
 
 
 if(__name__ == "__main__"):
-    possible_nelx_values =  np.array([50,80,100,120,200])
-    weightsForValues =      np.array([ 2, 2, 15,  2,  1])
+    possible_nelx_values =  np.array([80,100,200])
+    weightsForValues =      np.array([ 2, 15,  1])
 
     norm = weightsForValues/np.sum(weightsForValues)
 

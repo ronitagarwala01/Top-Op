@@ -905,7 +905,36 @@ def fenicsAgentToGif(dataPoint):
     
     SaveAsGif(x_array,nelx,nely,'FenicsOutput')
     
+def saveStatsForEachIteration(iterationImages,formatVector):
+    """
+    Takes the sequence of images(or flattened fenics arrays) and tests the compliance and stress of each part.
+    returns a dictionary of the stats over time.
+    """
     
+    complianceList = []
+    stressList = []
+    massList = []
+    print("Testing each iteration")
+    for part in iterationImages:
+        if(part.ndim == 1):
+            part_flat = part
+        else:
+            part_flat = np.ravel(part,order='F')
+
+        #print("\tCompliance Max: {}".format(c_max))
+        #print("\tStress Max: {}".format(s_max))
+
+        compliance,stress = convergenceTester(formatVector,part_flat,1)
+        mass = np.sum(part_flat)
+
+        complianceList.append(float(compliance))
+        stressList.append(float(stress))
+        massList.append(float(mass))
+
+
+    dictOfValues = {'mass':massList,'compliance':complianceList,'stress':stressList}
+
+    return dictOfValues
 
 def visualizeShiftDifferences(dataPoint):
     model = getModel(100,50)
@@ -953,7 +982,8 @@ def visualizeShiftDifferences(dataPoint):
         part = shiftImage(part,-shiftX,-shiftY)
         bestImageIterations.append(part)
     SaveAsGif(bestImageIterations,100,50,"modelOutput")
-
+    import json
+    json.dump(saveStatsForEachIteration(bestImageIterations,trueFormatVector),open("modelStatsOverIteration.json",'w'))
     bestPart = np.reshape(actualImages[sortedScoreIndexes[0]],(101*51),order='F')
     # solution_list, objective_list, derivative_list, C_max, S_max, converged = convergenceTester(trueFormatVector,bestPart,0)
     # print(C_max)
