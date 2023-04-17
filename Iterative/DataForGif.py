@@ -4,6 +4,7 @@ from massopt_fenics import *
 
 import numpy as np
 import io
+import os
 
 from PIL import Image
 from time import perf_counter
@@ -206,37 +207,151 @@ def plotFormatVector(formatVector,res:int=100,name:str='formatOut'):
     
     plt.savefig(str(name) + ".png", format='png')
 
-if(__name__ == "__main__"):
+
+def createSaveFolder(formatVector):
+    nelx, nely = formatVector[3], formatVector[4]
+    agentName = 'Sequence'
+
+    #Check the current path and locate the correct folder to save the data to
+    workingDirectory = os.getcwd()
+    agentDirectory = os.path.join(workingDirectory,"output", 'ModelComparisons')
+    dimesionFolder = os.path.join(agentDirectory,"{}_{}".format(nelx,nely))
+    pathExists = os.path.exists(dimesionFolder)
+    if( not pathExists):
+        os.makedirs(dimesionFolder)
+
+    #create a random agent number so that files can be seperated
+    num = np.random.randint(1,999999)
+    agentFolder = os.path.join(dimesionFolder,"{}_{}".format(agentName,num))
+    pathExists = os.path.exists(agentFolder)
+    if(not pathExists):
+        os.makedirs(agentFolder)
+    else:
+        # if the agent folder currently exist then create an Agent#_ folder
+        foundOpenNumber = False
+        currentNumber = 1
+        while( not foundOpenNumber):
+            currentAgentN = os.path.join(dimesionFolder,"{}{}_{}".format(agentName,currentNumber,num))
+            pathExists = os.path.exists(currentAgentN)
+            if(pathExists):
+                currentNumber += 1
+            else:
+                foundOpenNumber = True
+        os.makedirs(currentAgentN)
+        agentFolder = currentAgentN
+    
+    savedConditions = saveLoadConditions(agentFolder,formatVector)
+    return agentFolder
+    
+
+
+    
+
+
+def saveLoadConditions(folderToSaveTo,formattedArray):
+    """
+    Saves the load conditions stored inside the formatted Array
+
+    returns true if data was saved, returns false if there was an error
+    """
+
+    #unpack data
+    circles = formattedArray[0]
+    radii = formattedArray[1]
+    forces = formattedArray[2]
+    nelx, nely = formattedArray[3], formattedArray[4]
+    Y, C_max, S_max = formattedArray[5], formattedArray[6], formattedArray[7]
+
+    #format the directory to save the data to
+    originalWorkingDirectory = os.getcwd()
+    os.chdir(folderToSaveTo)
+    fileNameToSaveAs = "loadConditions"
+    formating_array = np.array([nelx,nely,Y,C_max,S_max])
+    
+    #try to save the data
+    dataIsSaved = False
+    try:
+        np.savez_compressed(fileNameToSaveAs,a=circles,b=radii,c=forces,d=formating_array)
+        dataIsSaved = True
+    except:
+        print("Something went wrong.")
+        print("Tried to save: {}".format(fileNameToSaveAs))
+    os.chdir(originalWorkingDirectory)
+    return dataIsSaved
+
+
+
+def main():
     nelx = 100
     nely = nelx//2
 
     solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely,False)
     print(formatted)
-    predisctions_list,modelTime = iterateShiftDifferences(formatted)
+    predictions_list,modelTime = iterateShiftDifferences(formatted)
 
     solution_asImages = []
     for i in range(len(solutions_list)):
 
         solution_asImages.append(np.reshape(solutions_list[i],(nelx+1,nely+1),order='F'))
 
-    
+    agentFolderPath = createSaveFolder(formatted)
 
+    cwd = os.getcwd()
+    os.chdir(agentFolderPath)
     plotFormatVector(formatted)
     SaveAsGif(solution_asImages,nelx,nely,"FenicsOutput")
-    SaveAsGif(predisctions_list,nelx,nely,"ModelOutput")
+    SaveAsGif(predictions_list,nelx,nely,"ModelOutput")
+    os.chdir(cwd)
 
     print("\n")
     print("Fenics took {:.2f} seconds.\nModel took {:.2f} seconds.\n".format(fenicsTime,modelTime))
 
+    #print("\tCompliance Max: {}".format(c_max))
+    #print("\tStress Max: {}".format(s_max))
+
     
-    part_flat = np.ravel(predisctions_list[-1],order='F')
+    part_flat = np.ravel(solution_asImages[-1],order='F')
 
     #print("\tCompliance Max: {}".format(c_max))
     #print("\tStress Max: {}".format(s_max))
 
     compliance,stress = convergenceTester(formatted,part_flat,1)
     mass = np.sum(part_flat)
-    print("mass: {}".format(mass))
-    print("Compliance: {}".format(compliance))
-    print("Stress: {}".format(stress))
+    f = open(os.path.join(agentFolderPath,"ModelComparison.txt"),'w')
+
+    f.write("Circle 1: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(formatted[0][0][0],formatted[0][1][0],formatted[1][0]))
+    f.write("Circle 2: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(formatted[0][0][1],formatted[0][1][1],formatted[1][1]))
+    f.write("Circle 3: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(formatted[0][0][2],formatted[0][1][2],formatted[1][2]))
+
+    f.write("\nForce 1: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][0],formatted[2][1][0],np.sqrt(formatted[2][0][0]**2 + formatted[2][1][0]**2)))
+    f.write("Force 2: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][1],formatted[2][1][1],np.sqrt(formatted[2][0][1]**2 + formatted[2][1][1]**2)))
+    f.write("Force 3: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][2],formatted[2][1][2],np.sqrt(formatted[2][0][2]**2 + formatted[2][1][2]**2)))
+
+
+    f.write("\nFenics part:\n")
+    f.write("\tmass: {}\n".format(int(mass)))
+    f.write("\tCompliance: {:.5f}\n".format(compliance))
+    f.write("\tStress: {:.5e}\n".format(stress))
+
+    part_flat = np.ravel(predictions_list[-1],order='F')
+    compliance,stress = convergenceTester(formatted,part_flat,1)
+    mass = np.sum(part_flat)
+    f.write("\nModel part:\n")
+    f.write("\tmass: {}\n".format(int(mass)))
+    f.write("\tCompliance: {:.5f}\n".format(compliance))
+    f.write("\tStress: {:.5e}\n".format(stress))
+
+    f.write("\nFenics took {:.2f} seconds.\nModel took {:.2f} seconds.\n".format(fenicsTime,modelTime))
+    if(converged):
+        f.write("Fenics part converged.")
+    else:
+        f.write("Fenics part did not converge.")
+
+    f.close()
+
+
+
+
+if(__name__ == "__main__"):
+    main()    
 
