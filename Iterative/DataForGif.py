@@ -130,7 +130,7 @@ def iterateShiftDifferences(formated):
 
         #print("{}:({},{})".format(i,shiftX,shiftY))
         part = PredictedImages[-1][i,:,:,:]
-        part = np.reshape(part,(101,51))
+        part = np.reshape(part,(nelx+1,nely+1))
         part = shiftImage(part,-shiftX,-shiftY)
         actualImages.append(part)
 
@@ -141,14 +141,14 @@ def iterateShiftDifferences(formated):
     #    print("part {}: {:.3f} : ({},{})".format(i,scores[i],shiftIndexes[i][0],shiftIndexes[i][1]))
 
     bestImage = sortedScoreIndexes[0]
-    bestImageIterations = [np.ones((101,51))]
+    bestImageIterations = [np.ones((nelx+1,nely+1))]
     for i in range(1,len(PredictedImages)):
         shiftX = shiftIndexes[bestImage][0]
         shiftY = shiftIndexes[bestImage][1]
 
         #print("{}:({},{})".format(i,shiftX,shiftY))
         part = PredictedImages[i][bestImage,:,:,:]
-        part = np.reshape(part,(101,51))
+        part = np.reshape(part,(nelx+1,nely+1))
         part = shiftImage(part,-shiftX,-shiftY)
         bestImageIterations.append(part)
     #SaveAsGif(bestImageIterations,100,50,"modelOutput")
@@ -281,8 +281,8 @@ def saveLoadConditions(folderToSaveTo,formattedArray):
 
 
 
-def main():
-    nelx = 100
+def main(size:int=100):
+    nelx = size - (size%2)
     nely = nelx//2
 
     solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely,False)
@@ -353,5 +353,15 @@ def main():
 
 
 if(__name__ == "__main__"):
-    main()    
+    possible_nelx_values =  np.array([50,80,100,120,200])
+    weightsForValues =      np.array([ 2, 2, 15,  2,  1])
+
+    norm = weightsForValues/np.sum(weightsForValues)
+
+    partsToGenerate = int(2*np.sum(weightsForValues))
+    #print(partsToGenerate)
+    for i in range(partsToGenerate):
+        resolution = np.random.choice(possible_nelx_values,p=norm)
+        print("part: {} of {}, resolution= {}.".format(i,partsToGenerate,resolution))
+        main(resolution)    
 
