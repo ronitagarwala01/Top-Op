@@ -195,11 +195,9 @@ def plotFormatVector(formatVector,res:int=100,name:str='formatOut'):
     def plotForce(num):
         centerX = circles[0][num] * res//2
         centerY = circles[1][num] * res//2
-        endX = centerX - forces[0][num] * forceScale
-        endY = centerY - forces[1][num] * forceScale
-        x1 = [centerX,endX]
-        y1 = [centerY,endY]
-        ax.plot(x1,y1)
+        dx = forces[0][num] * forceScale
+        dy = forces[1][num] * forceScale
+        ax.arrow(centerX,centerY,dx,dy,width=res/200,color='red')
 
     plotForce(0)
     plotForce(1)
@@ -360,7 +358,7 @@ def main(size:int=100):
 
 if(__name__ == "__main__"):
     possible_nelx_values =  np.array([80,100,200])
-    weightsForValues =      np.array([ 2, 15,  1])
+    weightsForValues =      np.array([ 4, 15,  1])
 
     norm = weightsForValues/np.sum(weightsForValues)
 
