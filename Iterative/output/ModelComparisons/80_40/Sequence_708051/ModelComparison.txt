@@ -1,0 +1,27 @@
+Circle 1: ( 0.90, 0.22 ) radius = 0.110
+Circle 2: ( 0.71, 0.76 ) radius = 0.131
+Circle 3: ( 1.18, 0.50 ) radius = 0.144
+
+Force 1: ( -5.73e+03, -7.15e+02 ) magnitued = 5.771e+03
+Force 2: ( 7.88e+03, -3.94e+02 ) magnitued = 7.885e+03
+Force 3: ( -2.15e+03, 1.11e+03 ) magnitued = 2.418e+03
+
+Young's Modulus: 1.47148e+11
+
+Compliance: 0.01275
+
+Stress: 1.21843e+07
+
+Fenics part:
+	mass: 213
+	Compliance: 0.07666
+	Stress: 4.27385e+06
+
+Model part:
+	mass: 332
+	Compliance: 0.02870
+	Stress: 1.10584e+06
+
+Fenics took 307.21 seconds.
+Model took 17.61 seconds.
+Fenics part converged.
