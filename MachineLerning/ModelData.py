@@ -1,10 +1,10 @@
 import tensorflow as tf
 import numpy as np
 
-FORCE_NORMILIZATION_FACTOR = 7000
-YOUNGS_MODULUS_NORMILIZATION_FACTOR = 238000000000
+FORCE_NORMILIZATION_FACTOR = 7e3
+YOUNGS_MODULUS_NORMILIZATION_FACTOR = 2.38e11
 COMPLIANCE_MAX_NORMILIZATION_FACTOR = 0.03
-STRESS_MAX_NORMILIZATION_FACTOR = 15000000
+STRESS_MAX_NORMILIZATION_FACTOR = 1.5e7
 
 
 class ConcatAndCrop(tf.keras.layers.Layer):
@@ -127,6 +127,89 @@ class Model_m9(tf.keras.Model):
             return out1,out2,out3,out4,out5
         else:
             return self.model(data)
+    
+    def train_step(self, data):
+        # Unpack the data. Its structure depends on your model and
+        # on what you pass to `fit()`.
+        x, y = data
+
+        partsArray = x['x']
+        formatImage = x['loadConditions']
+
+        y1 = y[0]
+        y2 = y[1]
+        y3 = y[2]
+        y4 = y[3]
+        y5 = y[4]
+        #axis 0 = image batches
+        #axis 1 = image x axis
+        #axis 2 = image y axis
+        #axis 4 = image pixel value
+        part_flipLR = tf.reverse(partsArray,axis=2)
+        part_flipUD = tf.reverse(partsArray,axis=1)
+        part_flipDiag = tf.reverse(part_flipUD,axis=2)
+
+        #axis 0 = image batches
+        #axis 1 = image x axis
+        #axis 2 = image y axis
+        #axis 4 = image pixel value(0=circles, 1=forcesx, 2= forceY, 3=youngs, 4= compliance, 5=stress)
+
+        format_flipLR = tf.reverse(formatImage,axis=2)
+        format_flipUD = tf.reverse(formatImage,axis=1)
+        format_flipDiag = tf.reverse(format_flipUD,axis=2)
+
+        format_flipLR[:,:,:,1] *= -1
+        format_flipUD[:,:,:,2] *= -1
+
+        format_flipDiag[:,:,:,1] *= -1
+        format_flipDiag[:,:,:,2] *= -1
+
+        y1_flipLR = tf.reverse(y1,axis=2)
+        y1_flipUD = tf.reverse(y1,axis=1)
+        y1_flipDiag = tf.reverse(y1_flipUD,axis=2)
+
+        y2_flipLR = tf.reverse(y2,axis=2)
+        y2_flipUD = tf.reverse(y2,axis=1)
+        y2_flipDiag = tf.reverse(y2_flipUD,axis=2)
+
+        y3_flipLR = tf.reverse(y3,axis=2)
+        y3_flipUD = tf.reverse(y3,axis=1)
+        y3_flipDiag = tf.reverse(y3_flipUD,axis=2)
+
+        y4_flipLR = tf.reverse(y4,axis=2)
+        y4_flipUD = tf.reverse(y4,axis=1)
+        y4_flipDiag = tf.reverse(y4_flipUD,axis=2)
+
+        y5_flipLR = tf.reverse(y5,axis=2)
+        y5_flipUD = tf.reverse(y5,axis=1)
+        y5_flipDiag = tf.reverse(y5_flipUD,axis=2)
+
+        x_array = tf.concat([partsArray,part_flipLR,part_flipUD,part_flipDiag],axis=0)
+        format_array = tf.concat([formatImage,format_flipLR,format_flipUD,format_flipDiag],axis=0)
+
+        y1 = tf.concat([y1,y1_flipLR,y1_flipUD,y1_flipDiag],axis=0)
+        y2 = tf.concat([y2,y2_flipLR,y2_flipUD,y2_flipDiag],axis=0)
+        y3 = tf.concat([y3,y3_flipLR,y3_flipUD,y3_flipDiag],axis=0)
+        y4 = tf.concat([y4,y4_flipLR,y4_flipUD,y4_flipDiag],axis=0)
+        y5 = tf.concat([y5,y5_flipLR,y5_flipUD,y5_flipDiag],axis=0)
+
+        y_true = (y1,y2,y3,y4,y5)
+
+        with tf.GradientTape() as tape:
+            y_pred = self({'x':x_array,'loadConditions':format_array}, training=True)  # Forward pass
+            # Compute the loss value
+            # (the loss function is configured in `compile()`)
+            loss = self.compiled_loss(y_true, y_pred, regularization_losses=self.losses)
+
+        # Compute gradients
+        trainable_vars = self.trainable_variables
+        gradients = tape.gradient(loss, trainable_vars)
+        # Update weights
+        self.optimizer.apply_gradients(zip(gradients, trainable_vars))
+        # Update metrics (includes the metric that tracks the loss)
+        self.compiled_metrics.update_state(y, y_pred)
+        # Return a dict mapping metric names to current value
+        return {m.name: m.result() for m in self.metrics}
 
 
 class TopOptSequence:
