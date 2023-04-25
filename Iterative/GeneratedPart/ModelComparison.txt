@@ -1,0 +1,17 @@
+Circle 1: ( 0.61, 0.69 ) radius = 0.196
+Circle 2: ( 1.21, 0.47 ) radius = 0.102
+Circle 3: ( 1.73, 0.73 ) radius = 0.155
+
+Force 1: ( 1.22e+04, 3.21e+03 ) magnitued = 1.266e+04
+Force 2: ( 7.34e+03, 7.82e+03 ) magnitued = 1.073e+04
+Force 3: ( -1.96e+04, -1.10e+04 ) magnitued = 2.248e+04
+
+Fenics part:
+	mass: 622
+	Compliance: 0.28383
+	Stress: 1.38403e+06
+
+Model part:
+	mass: 564
+	Compliance: 2.27286
+	Stress: 3.79322e+07

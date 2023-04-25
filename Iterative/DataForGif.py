@@ -272,11 +272,11 @@ def saveLoadConditions(folderToSaveTo,formattedArray):
     os.chdir(originalWorkingDirectory)
     return dataIsSaved
 
-def main(size:int=100):
+def main(size:int=100,CreateFenicsPart:bool=True):
     nelx = size - (size%2)
     nely = nelx//2
 
-    solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely,False)
+    solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely,not CreateFenicsPart)
     print(formatted)
     predictions_list,modelTime = iterateShiftDifferences(formatted)
 
@@ -290,9 +290,10 @@ def main(size:int=100):
     cwd = os.getcwd()
     os.chdir(agentFolderPath)
     plotFormatVector(formatted)
-    SaveAsGif(solution_asImages,nelx,nely,"FenicsOutput")
+    if(CreateFenicsPart):
+        SaveAsGif(solution_asImages,nelx,nely,"FenicsOutput")
     SaveAsGif(predictions_list,nelx,nely,"ModelOutput")
-    json.dump(saveStatsForEachIteration(predictions_list,formatted),open(os.path.join(agentFolderPath,"modelStatsOverIteration.json"),'w'))
+    #json.dump(saveStatsForEachIteration(predictions_list,formatted),open(os.path.join(agentFolderPath,"modelStatsOverIteration.json"),'w'))
     os.chdir(cwd)
 
     print("\n")
@@ -338,7 +339,7 @@ def main(size:int=100):
     f.write("\tStress: {:.5e}\n".format(stress))
 
     f.write("\nFenics took {:.2f} seconds.\nModel took {:.2f} seconds.\n".format(fenicsTime,modelTime))
-    if(converged):
+    if(converged and CreateFenicsPart):
         f.write("Fenics part converged.")
     else:
         f.write("Fenics part did not converge.")
@@ -362,7 +363,80 @@ def main2():
     ModelPartDifferences(formatedLR,'MirrorY')
     ModelPartDifferences(formatedUD,'MirrorX')
     ModelPartDifferences(formatedDiagonal,'MirrorDiagonal')
+
+def main3():
+    nelx = size - (size%2)
+    nely = nelx//2
+
+    solutions_list, formatted, fenicsTime, converged = generateData(nelx,nely,not CreateFenicsPart)
+    print(formatted)
+    predictions_list,modelTime = iterateShiftDifferences(formatted)
+
+    solution_asImages = []
+    for i in range(len(solutions_list)):
+
+        solution_asImages.append(np.reshape(solutions_list[i],(nelx+1,nely+1),order='F'))
+
+    agentFolderPath = createSaveFolder(formatted)
+
+    cwd = os.getcwd()
+    os.chdir(agentFolderPath)
+    plotFormatVector(formatted)
+    if(CreateFenicsPart):
+        SaveAsGif(solution_asImages,nelx,nely,"FenicsOutput")
+    SaveAsGif(predictions_list,nelx,nely,"ModelOutput")
+    #json.dump(saveStatsForEachIteration(predictions_list,formatted),open(os.path.join(agentFolderPath,"modelStatsOverIteration.json"),'w'))
+    os.chdir(cwd)
+
+    print("\n")
+    print("Fenics took {:.2f} seconds.\nModel took {:.2f} seconds.\n".format(fenicsTime,modelTime))
+
+    #print("\tCompliance Max: {}".format(c_max))
+    #print("\tStress Max: {}".format(s_max))
+
     
+    part_flat = np.ravel(solution_asImages[-1],order='F')
+
+    #print("\tCompliance Max: {}".format(c_max))
+    #print("\tStress Max: {}".format(s_max))
+
+    compliance,stress = convergenceTester(formatted,part_flat,1)
+    mass = np.sum(part_flat)
+    f = open(os.path.join(agentFolderPath,"ModelComparison.txt"),'w')
+
+    f.write("Circle 1: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(formatted[0][0][0],formatted[0][1][0],formatted[1][0]))
+    f.write("Circle 2: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(formatted[0][0][1],formatted[0][1][1],formatted[1][1]))
+    f.write("Circle 3: ( {:.2f}, {:.2f} ) radius = {:.3f}\n".format(formatted[0][0][2],formatted[0][1][2],formatted[1][2]))
+
+    f.write("\nForce 1: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][0],formatted[2][1][0],np.sqrt(formatted[2][0][0]**2 + formatted[2][1][0]**2)))
+    f.write("Force 2: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][1],formatted[2][1][1],np.sqrt(formatted[2][0][1]**2 + formatted[2][1][1]**2)))
+    f.write("Force 3: ( {:.2e}, {:.2e} ) magnitued = {:.3e}\n".format(formatted[2][0][2],formatted[2][1][2],np.sqrt(formatted[2][0][2]**2 + formatted[2][1][2]**2)))
+
+    f.write("\nYoung's Modulus: {:.5e}\n".format(formatted[5]))
+    f.write("\nCompliance: {:.5f}\n".format(formatted[6]))
+    f.write("\nStress: {:.5e}\n".format(formatted[7]))
+
+
+    f.write("\nFenics part:\n")
+    f.write("\tmass: {}\n".format(int(mass)))
+    f.write("\tCompliance: {:.5f}\n".format(compliance))
+    f.write("\tStress: {:.5e}\n".format(stress))
+
+    part_flat = np.ravel(predictions_list[-1],order='F')
+    compliance,stress = convergenceTester(formatted,part_flat,1)
+    mass = np.sum(part_flat)
+    f.write("\nModel part:\n")
+    f.write("\tmass: {}\n".format(int(mass)))
+    f.write("\tCompliance: {:.5f}\n".format(compliance))
+    f.write("\tStress: {:.5e}\n".format(stress))
+
+    f.write("\nFenics took {:.2f} seconds.\nModel took {:.2f} seconds.\n".format(fenicsTime,modelTime))
+    if(converged and CreateFenicsPart):
+        f.write("Fenics part converged.")
+    else:
+        f.write("Fenics part did not converge.")
+
+    f.close()  
     
 def FenicsOptimizeTest(formatVector):
     
@@ -528,9 +602,6 @@ def ModelPartDifferences(formatVector,trial:str='Sequence'):
     f.close()
 
 
-if(__name__ == "__main__"):
-
-    
-        
-    main2()    
+if(__name__ == "__main__"):   
+    main(CreateFenicsPart = False)    
 

@@ -334,7 +334,7 @@ def fenicsOptimizer(problemConditions):
 
 
         problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints = [ComplianceConstraint(C_max), StressConstraint(S_max, q)])
-        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 10, "output_file": 'ipoptOut.txt', "file_print_level": 3}
+        parameters = {"acceptable_tol": 1.0e-2, "maximum_iterations": 150, "output_file": 'ipoptOut.txt', "file_print_level": 3}
 
         solver = IPOPTSolver(problem, parameters=parameters)
         rho_opt = solver.solve()
